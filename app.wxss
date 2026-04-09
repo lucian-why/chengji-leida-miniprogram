@@ -1,0 +1,46 @@
+page {
+  --bg-primary: #faf8f5;
+  --bg-card: #ffffff;
+  --text-primary: #2d2a26;
+  --text-secondary: #6b6560;
+  --accent-warm: #e8a87c;
+  --accent-green: #7cb98b;
+  --accent-blue: #7ca9c9;
+  --accent-purple: #9b8dc4;
+  --accent-danger: #e88a8a;
+  --border-color: #e8e4de;
+  --shadow-soft: 0 6rpx 24rpx rgba(45, 42, 38, 0.06);
+  --shadow-card: 0 10rpx 40rpx rgba(45, 42, 38, 0.08);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 28rpx;
+  line-height: 1.6;
+}
+
+view,
+text,
+button,
+input,
+textarea,
+picker,
+scroll-view,
+canvas,
+image {
+  box-sizing: border-box;
+}
+
+button {
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  color: inherit;
+  font-size: inherit;
+  line-height: inherit;
+}
+
+button::after {
+  border: none;
+}
