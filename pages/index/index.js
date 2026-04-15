@@ -337,6 +337,51 @@ Page({
     }
   },
 
+  // ======================== AI 对话入口 ========================
+
+  /**
+   * 入口1：从 AI 分析报告进入对话
+   */
+  openAIChatFromReport() {
+    const user = auth.getCurrentUser();
+    if (!user) {
+      this.openAuthModal();
+      return;
+    }
+
+    // 获取当前分析文本（从缓存的原始文本获取，不是 HTML）
+    const analysisText = ai._lastAnalysisText || '';
+    const encodedText = analysisText ? encodeURIComponent(analysisText) : '';
+
+    wx.navigateTo({
+      url: `/pages/ai-chat/ai-chat?source=report&analysisText=${encodedText}`
+    });
+  },
+
+  /**
+   * 入口2：从科目对比进入对话
+   */
+  openAIChatFromCompare() {
+    const user = auth.getCurrentUser();
+    if (!user) {
+      this.openAuthModal();
+      return;
+    }
+
+    // 构建科目对比数据
+    const currentExamId = this.data.currentExamId;
+    const selectedCompareIds = (this.data.radarExams || [])
+      .filter(e => e.selected)
+      .map(e => e.id);
+
+    const compareData = ai.buildCompareData(currentExamId, selectedCompareIds);
+    const encodedData = compareData ? encodeURIComponent(JSON.stringify(compareData)) : '';
+
+    wx.navigateTo({
+      url: `/pages/ai-chat/ai-chat?source=compare&compareData=${encodedData}`
+    });
+  },
+
   _saveAndReload() {
     this._loadData();
   },
@@ -549,12 +594,22 @@ Page({
 
   openAuthModal() {
     this._resetAuthForm('login', '登录后可启用后续的云端同步能力。');
-    this.setData({ showAuthModal: true });
+    this.setData({
+      showAuthModal: true,
+      canvasHidden: true   // 隐藏原生 canvas，避免遮挡弹窗
+    });
   },
 
   closeAuthModal() {
-    this.setData({ showAuthModal: false });
+    this.setData({
+      showAuthModal: false,
+      canvasHidden: false  // 恢复 canvas 显示
+    });
     this._setAuthStatus('', '');
+    // canvas 重建后需要重新绘制图表
+    setTimeout(() => {
+      if (this._drawChart) this._drawChart();
+    }, 300);
   },
 
   // 登录模式切换快捷方法

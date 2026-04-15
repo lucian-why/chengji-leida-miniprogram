@@ -126,38 +126,56 @@ function createScoreModule(page) {
     if (!exam || !exam.subjects || exam.subjects.length === 0) return;
 
     page.setData({
+      showDeleteSubjectModal: true,
+      deleteSubjectList: exam.subjects.map((s, i) => ({
+        name: s.name,
+        score: s.score,
+        fullScore: s.fullScore || 100,
+        index: i,
+        selected: false
+      })),
+      deleteSubjectSelected: -1
+    });
+  }
+
+  function toggleDeleteSubject(e) {
+    const idx = e.currentTarget.dataset.index;
+    const list = page.data.deleteSubjectList;
+    const current = page.data.deleteSubjectSelected;
+
+    list.forEach((item, i) => {
+      item.selected = (i === idx && current !== idx);
+    });
+
+    page.setData({
+      deleteSubjectList: list,
+      deleteSubjectSelected: current === idx ? -1 : idx
+    });
+  }
+
+  function doDeleteSelectedSubject() {
+    const idx = page.data.deleteSubjectSelected;
+    if (idx < 0) return;
+
+    const subName = page.data.deleteSubjectList[idx].name;
+    page.setData({
+      showDeleteSubjectModal: false,
       showConfirmModal: true,
       confirmIcon: '!',
       confirmIconType: 'danger',
       confirmTitle: '删除科目',
-      confirmMessage: '请选择要删除的科目。',
-      confirmOkText: '',
+      confirmMessage: `确定删除"${subName}"吗？`,
+      confirmOkText: '删除',
       confirmOkClass: 'btn-danger',
-      confirmShowCancel: false,
-      _confirmCallback: null
+      confirmShowCancel: true,
+      _confirmCallback: () => { _doDeleteSubject(idx); }
     });
+  }
 
-    const subjectList = exam.subjects.map(s => s.name);
-    wx.showActionSheet({
-      itemList: subjectList,
-      success: (res) => {
-        const idx = res.tapIndex;
-        const subName = exam.subjects[idx].name;
-        page.setData({
-          showConfirmModal: true,
-          confirmIcon: '!',
-          confirmIconType: 'danger',
-          confirmTitle: '删除科目',
-          confirmMessage: `确定删除“${subName}”吗？`,
-          confirmOkText: '删除',
-          confirmOkClass: 'btn-danger',
-          confirmShowCancel: true,
-          _confirmCallback: () => { _doDeleteSubject(idx); }
-        });
-      },
-      fail: () => {
-        page.setData({ showConfirmModal: false, _confirmCallback: null });
-      }
+  function closeDeleteSubjectModal() {
+    page.setData({
+      showDeleteSubjectModal: false,
+      deleteSubjectSelected: -1
     });
   }
 
@@ -181,7 +199,10 @@ function createScoreModule(page) {
     closeScoreModal,
     onScoreFormInput,
     saveSubject,
-    confirmDeleteSubject
+    confirmDeleteSubject,
+    toggleDeleteSubject,
+    doDeleteSelectedSubject,
+    closeDeleteSubjectModal
   };
 }
 

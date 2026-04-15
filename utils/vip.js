@@ -24,6 +24,7 @@ const QUOTA_PREFIX = 'xueji_vip_quota_';
 
 const LIMITS = {
   aiAnalysisDaily: 2,        // AI 分析每天次数
+  aiChatDaily: 2,            // AI 对话每天轮次
   maxProfiles: 2,             // 最大档案数量
   recycleBinRestore: false,    // 非VIP能否恢复回收站数据
 };
@@ -160,6 +161,20 @@ function checkLimit(type, currentUsage) {
       return { allowed: true, used: record.count, limit };
     }
 
+    case 'aiChat': {
+      const record = _getQuotaRecord('aiChat');
+      const limit = LIMITS.aiChatDaily;
+      if (record.count >= limit) {
+        return {
+          allowed: false,
+          reason: `今日 AI 对话次数已用完（${limit}/${limit}）`,
+          used: record.count,
+          limit
+        };
+      }
+      return { allowed: true, used: record.count, limit };
+    }
+
     case 'profileCount': {
       const limit = LIMITS.maxProfiles;
       if (currentUsage >= limit) {
@@ -221,6 +236,7 @@ function resetQuota(type) {
 function getQuotaOverview() {
   const vip = isVip();
   const aiRecord = _getQuotaRecord('aiAnalysis');
+  const aiChatRecord = _getQuotaRecord('aiChat');
 
   return {
     isVip: vip,
@@ -228,6 +244,11 @@ function getQuotaOverview() {
       used: aiRecord.count,
       limit: LIMITS.aiAnalysisDaily,
       remaining: Math.max(0, LIMITS.aiAnalysisDaily - aiRecord.count)
+    },
+    aiChat: {
+      used: aiChatRecord.count,
+      limit: LIMITS.aiChatDaily,
+      remaining: Math.max(0, LIMITS.aiChatDaily - aiChatRecord.count)
     },
     limits: { ...LIMITS }
   };

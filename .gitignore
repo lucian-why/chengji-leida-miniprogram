@@ -1,0 +1,19 @@
+# Dependencies
+node_modules/
+
+# Build output
+miniprogram_npm/
+
+# Private config
+project.private.config.json
+
+# Sourcemaps
+sourcemap.zip
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/

@@ -1,0 +1,62 @@
+<view class="chat-container">
+  <!-- 消息列表 -->
+  <scroll-view scroll-y class="chat-messages" scroll-into-view="{{scrollToId}}" enhanced show-scrollbar="{{false}}">
+    <!-- 登录提示 -->
+    <view class="chat-empty-state" wx:if="{{!isLoggedIn}}">
+      <view class="chat-empty-icon">🔐</view>
+      <view class="chat-empty-title">登录后即可使用 AI 对话</view>
+      <view class="chat-empty-desc">登录后，AI 可以结合当前档案的成绩数据，和你深入分析学习情况。</view>
+    </view>
+
+    <!-- 数据不足提示 -->
+    <view class="chat-empty-state" wx:elif="{{!hasExamData}}">
+      <view class="chat-empty-icon">📝</view>
+      <view class="chat-empty-title">还没有考试记录</view>
+      <view class="chat-empty-desc">至少记录 1 场考试后，AI 才能和你聊成绩相关的话题。</view>
+    </view>
+
+    <!-- 消息列表 -->
+    <block wx:else>
+      <view id="msg-{{index}}" class="chat-msg {{item.role}}" wx:for="{{messages}}" wx:key="index">
+        <view class="chat-msg-avatar" wx:if="{{item.role === 'assistant'}}">🤖</view>
+        <view class="chat-msg-bubble {{item.isError ? 'error' : ''}}">
+          <rich-text wx:if="{{item.role === 'assistant'}}" nodes="{{item.html}}"></rich-text>
+          <text wx:else>{{item.content}}</text>
+        </view>
+      </view>
+
+      <!-- 思考中提示 -->
+      <view class="chat-msg assistant" wx:if="{{isBusy}}">
+        <view class="chat-msg-avatar">🤖</view>
+        <view class="chat-msg-bubble typing">
+          <view class="typing-dots">
+            <view class="typing-dot"></view>
+            <view class="typing-dot"></view>
+            <view class="typing-dot"></view>
+          </view>
+        </view>
+      </view>
+
+      <view id="msg-bottom"></view>
+    </block>
+  </scroll-view>
+
+  <!-- 输入区 -->
+  <view class="chat-input-area" wx:if="{{isLoggedIn && hasExamData}}">
+    <view class="chat-input-row">
+      <input class="chat-input"
+        placeholder="{{isBusy ? 'AI 正在思考…' : '输入你的问题…'}}"
+        value="{{inputText}}"
+        bindinput="onInput"
+        bindconfirm="onSend"
+        confirm-type="send"
+        disabled="{{isBusy}}"
+        adjust-position="{{true}}"
+      />
+      <view class="chat-send-btn {{isBusy || !inputText.trim() ? 'disabled' : ''}}" bindtap="onSend">发送</view>
+    </view>
+    <view class="chat-quota-hint" wx:if="{{!isVip}}">
+      今日对话 {{chatUsed}}/{{chatLimit}} 轮
+    </view>
+  </view>
+</view>

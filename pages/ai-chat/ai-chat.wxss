@@ -1,0 +1,214 @@
+/* ===== AI 对话页面 ===== */
+.chat-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: #faf8f5;
+}
+
+/* ===== 消息列表 ===== */
+.chat-messages {
+  flex: 1;
+  padding: 20rpx 24rpx;
+  overflow-y: auto;
+}
+
+.chat-msg {
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: 24rpx;
+  animation: msgFadeIn 0.3s ease;
+}
+
+@keyframes msgFadeIn {
+  from { opacity: 0; transform: translateY(10rpx); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.chat-msg.user {
+  flex-direction: row-reverse;
+}
+
+.chat-msg-avatar {
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #e8e0f0, #d0e4f7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28rpx;
+  flex-shrink: 0;
+  margin-right: 12rpx;
+}
+
+.chat-msg.user .chat-msg-avatar {
+  display: none;
+}
+
+.chat-msg-bubble {
+  max-width: 75%;
+  padding: 20rpx 28rpx;
+  border-radius: 20rpx;
+  font-size: 28rpx;
+  line-height: 1.6;
+  word-break: break-word;
+}
+
+.chat-msg.assistant .chat-msg-bubble {
+  background: #fff;
+  color: #333;
+  border: 1rpx solid rgba(124, 169, 201, 0.1);
+  border-top-left-radius: 6rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.04);
+}
+
+.chat-msg.assistant .chat-msg-bubble.error {
+  color: #e88a8a;
+  background: #fff5f5;
+  border-color: rgba(232, 138, 138, 0.15);
+}
+
+.chat-msg.user .chat-msg-bubble {
+  background: linear-gradient(135deg, #7198d8, #8f84cb);
+  color: #fff;
+  border-top-right-radius: 6rpx;
+}
+
+/* rich-text 内容样式 */
+.chat-msg.assistant .chat-msg-bubble rich-text h1,
+.chat-msg.assistant .chat-msg-bubble rich-text h2,
+.chat-msg.assistant .chat-msg-bubble rich-text h3,
+.chat-msg.assistant .chat-msg-bubble rich-text h4 {
+  font-weight: 600;
+  margin: 12rpx 0 6rpx;
+  color: #2c3e50;
+}
+
+.chat-msg.assistant .chat-msg-bubble rich-text h1 { font-size: 32rpx; }
+.chat-msg.assistant .chat-msg-bubble rich-text h2 { font-size: 30rpx; }
+.chat-msg.assistant .chat-msg-bubble rich-text h3 { font-size: 28rpx; }
+.chat-msg.assistant .chat-msg-bubble rich-text h4 { font-size: 26rpx; }
+
+.chat-msg.assistant .chat-msg-bubble rich-text p {
+  margin: 6rpx 0;
+}
+
+.chat-msg.assistant .chat-msg-bubble rich-text ul,
+.chat-msg.assistant .chat-msg-bubble rich-text ol {
+  padding-left: 32rpx;
+  margin: 6rpx 0;
+}
+
+.chat-msg.assistant .chat-msg-bubble rich-text li {
+  margin: 4rpx 0;
+}
+
+.chat-msg.assistant .chat-msg-bubble rich-text strong {
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+/* ===== 思考中动画 ===== */
+.chat-msg-bubble.typing {
+  padding: 20rpx 28rpx;
+}
+
+.typing-dots {
+  display: flex;
+  gap: 8rpx;
+  align-items: center;
+}
+
+.typing-dot {
+  width: 12rpx;
+  height: 12rpx;
+  border-radius: 50%;
+  background: #b0c4de;
+  animation: typingBounce 1.2s infinite;
+}
+
+.typing-dot:nth-child(2) { animation-delay: 0.2s; }
+.typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes typingBounce {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+  30% { transform: translateY(-8rpx); opacity: 1; }
+}
+
+/* ===== 空状态 ===== */
+.chat-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 120rpx 60rpx;
+  text-align: center;
+}
+
+.chat-empty-icon {
+  font-size: 64rpx;
+  margin-bottom: 24rpx;
+}
+
+.chat-empty-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 12rpx;
+}
+
+.chat-empty-desc {
+  font-size: 26rpx;
+  color: #888;
+  line-height: 1.6;
+}
+
+/* ===== 输入区 ===== */
+.chat-input-area {
+  padding: 16rpx 24rpx;
+  padding-bottom: calc(16rpx + env(safe-area-inset-bottom));
+  background: #fff;
+  border-top: 1rpx solid rgba(0, 0, 0, 0.06);
+}
+
+.chat-input-row {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+
+.chat-input {
+  flex: 1;
+  height: 72rpx;
+  padding: 0 24rpx;
+  background: #f5f3f0;
+  border-radius: 36rpx;
+  font-size: 28rpx;
+  color: #333;
+}
+
+.chat-send-btn {
+  height: 72rpx;
+  padding: 0 32rpx;
+  background: linear-gradient(135deg, #7198d8, #8f84cb);
+  color: #fff;
+  border-radius: 36rpx;
+  font-size: 28rpx;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.2s;
+}
+
+.chat-send-btn.disabled {
+  opacity: 0.4;
+}
+
+.chat-quota-hint {
+  text-align: center;
+  font-size: 22rpx;
+  color: #b0a090;
+  margin-top: 8rpx;
+}

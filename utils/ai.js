@@ -38,13 +38,26 @@ const TEXT = {
   batchPending: 'AI 正在识别成绩文本…',
   batchEmpty: '这段文字里没有识别出可回填的科目成绩。',
   batchParseFailed: 'AI 识别失败，请稍后再试',
-  batchLoginPrompt: '登录后即可使用 AI 成绩分析和 AI 辅助录入。'
+  batchLoginPrompt: '登录后即可使用 AI 成绩分析和 AI 辅助录入。',
+  // AI 对话文本
+  chatTitleReport: 'AI 成绩对话',
+  chatTitleCompare: 'AI 追问',
+  chatTitleGlobal: 'AI 对话',
+  chatPlaceholder: '输入你的问题…',
+  chatBusy: 'AI 正在思考…',
+  chatErrorRetry: '发送失败，请点击重试',
+  chatContextReport: '请结合当前成绩分析报告，详细分析整体表现。',
+  chatContextCompare: '请结合当前科目对比，分析优势科目、薄弱科目和提升建议。',
+  chatContextGlobal: '你可以继续追问成绩、排名、科目变化和学习建议。',
+  chatEntryReport: '想进一步了解成绩？和 AI 聊聊 →',
+  chatEntryCompare: 'AI 追问'
 };
 
 const MINI_PROGRAM_AI_PROVIDER = 'hunyuan-exp';
 const MINI_PROGRAM_AI_MODEL = 'hunyuan-2.0-instruct-20251111';
 const MINI_PROGRAM_AI_TIMEOUT = 15000;  // 原生 AI 超时 15 秒
 const CLOUD_FUNCTION_TIMEOUT = 25000;   // 云函数超时 25 秒
+const CHAT_AI_TIMEOUT = 20000;          // 对话模式超时 20 秒
 
 let _analysisRequestToken = 0;
 let _lastAnalysisKey = '';
@@ -589,6 +602,129 @@ function buildLocalFallbackAnalysis(exams) {
   return [trendLine, bestLine, weakLine, nextLine].join('\n\n');
 }
 
+// ==================== API 3: AI 对话 ====================
+
+/**
+ * 构建对话系统提示词
+ * @param {'report'|'compare'|'global'} source - 入口来源
+ * @param {object} [extra] - 附加数据
+ * @returns {string} 系统提示词
+ */
+function buildChatSystemPrompt(source = 'global', extra = {}) {
+  const profileId = getActiveProfileId();
+  const exams = getExams(profileId, true);
+  const examSummary = exams.slice(-6).map(exam => {
+    const subjects = (exam.subjects || []).map(s => `${s.name}:${s.score}/${s.fullScore || 100}`).join(', ');
+    return `${exam.name}(${exam.startDate || exam.createdAt || ''}) 总分:${exam.manualTotalScore || (exam.subjects || []).reduce((sum, s) => sum + (Number(s.score) || 0), 0)} ${subjects ? '[' + subjects + ']' : ''}`;
+  }).join('\n');
+
+  let prompt = `你是"成绩雷达"的 AI 学习分析助手，正在和用户进行一对一对话。
+
+当前档案的考试数据（最近几场）：
+${examSummary || '暂无考试数据'}
+
+对话规则：
+1. 根据用户的提问和提供的考试数据，给出有针对性的分析和建议。
+2. 语言温和、简洁、有具体建议，不要空泛鸡汤。
+3. 可以引用具体的考试数据来支撑你的分析，但不要编造数据。
+4. 如果信息不足以回答，就明确说"当前数据还不够"。
+5. 回答控制在 300 字以内，除非用户明确要求详细分析。
+6. "下一步建议"必须是具体动作，而不是泛泛鼓励。
+7. 如果用户问的问题与成绩/学习无关，礼貌地引导回成绩话题。`;
+
+  // 报告入口：附上分析报告
+  if (source === 'report' && extra.analysisText) {
+    prompt += `\n\n当前 AI 分析报告内容：\n${extra.analysisText}`;
+  }
+
+  // 科目对比入口：附上对比数据
+  if (source === 'compare' && extra.compareData) {
+    prompt += `\n\n当前科目对比数据：\n${JSON.stringify(extra.compareData, null, 2)}`;
+  }
+
+  return prompt;
+}
+
+/**
+ * 发送 AI 对话消息
+ *
+ * @param {object} options
+ * @param {Array<{role:string,content:string}>} options.messages - 完整消息列表（含 system + 历史）
+ * @param {number} [options.timeout=20000] - 超时时间
+ * @returns {Promise<{text:string,source:string}>}
+ */
+async function sendChatMessage({ messages, timeout } = {}) {
+  const actualTimeout = timeout || CHAT_AI_TIMEOUT;
+
+  // ① 优先使用小程序原生 AI
+  try {
+    const result = await generateTextWithMiniProgramAI(messages, {
+      temperature: 0.5,
+      timeout: actualTimeout
+    });
+    return result;
+  } catch (directError) {
+    console.warn('[AI] 原生 AI 对话失败，回退云函数:', directError.message || directError);
+  }
+
+  // ② 回退到云函数 chat action
+  try {
+    const result = await callFunction('ai_service', {
+      action: 'chat',
+      data: { messages }
+    }, { timeout: CLOUD_FUNCTION_TIMEOUT });
+
+    if (result && result.code === 0 && result.data && result.data.text) {
+      return {
+        text: String(result.data.text).trim(),
+        source: result.data.source || 'cloud-function'
+      };
+    }
+    throw new Error(result?.message || '云函数未返回有效内容');
+  } catch (cloudError) {
+    console.warn('[AI] 云函数对话也失败:', cloudError.message || cloudError);
+    throw new Error('AI 对话暂时不可用，请稍后再试');
+  }
+}
+
+/**
+ * 构建科目对比数据（供入口传递给对话页）
+ * @param {string} currentExamId - 当前考试 ID
+ * @param {Array} selectedCompareIds - 选中的对比考试 ID 列表
+ * @returns {object|null}
+ */
+function buildCompareData(currentExamId, selectedCompareIds = []) {
+  const profileId = getActiveProfileId();
+  const exams = getExams(profileId, true);
+  const currentExam = exams.find(e => e.id === currentExamId);
+  if (!currentExam) return null;
+
+  return {
+    currentExam: {
+      name: currentExam.name,
+      subjects: (currentExam.subjects || []).map(s => ({
+        name: s.name,
+        score: s.score,
+        fullScore: s.fullScore || 100,
+        rate: ((s.score / (s.fullScore || 100)) * 100).toFixed(1) + '%'
+      }))
+    },
+    compareExams: selectedCompareIds.map(id => {
+      const exam = exams.find(e => e.id === id);
+      if (!exam) return null;
+      return {
+        name: exam.name,
+        subjects: (exam.subjects || []).map(s => ({
+          name: s.name,
+          score: s.score,
+          fullScore: s.fullScore || 100,
+          rate: ((s.score / (s.fullScore || 100)) * 100).toFixed(1) + '%'
+        }))
+      };
+    }).filter(Boolean)
+  };
+}
+
 // ==================== 导出 ====================
 
 module.exports = {
@@ -597,5 +733,9 @@ module.exports = {
   buildLocalFallbackAnalysis,
   buildAnalysisPayload,
   TEXT,
-  formatAnalysisHtml
+  formatAnalysisHtml,
+  sendChatMessage,
+  buildChatSystemPrompt,
+  buildCompareData,
+  get _lastAnalysisText() { return _lastAnalysisText; }
 };

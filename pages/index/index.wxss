@@ -1590,6 +1590,89 @@ view, text, navigator, image {
   text-align: center;
 }
 
+/* 选择删除科目弹窗 */
+.delete-subject-modal {
+  max-width: 640rpx;
+  overflow: hidden;
+}
+
+.delete-subject-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 28rpx 32rpx 20rpx;
+  border-bottom: 1rpx solid var(--border-color);
+}
+
+.delete-subject-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.delete-subject-list {
+  padding: 16rpx 24rpx;
+  max-height: 55vh;
+  overflow-y: auto;
+}
+
+.delete-subject-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24rpx 20rpx;
+  border-radius: 16rpx;
+  margin-bottom: 8rpx;
+  background: var(--bg-primary);
+  border: 2rpx solid transparent;
+  transition: all 0.2s;
+}
+
+.delete-subject-item:active {
+  background: rgba(239, 68, 68, 0.04);
+}
+
+.delete-subject-item.selected {
+  background: rgba(239, 68, 68, 0.06);
+  border-color: rgba(239, 68, 68, 0.25);
+}
+
+.delete-subject-info {
+  display: flex;
+  align-items: baseline;
+  gap: 16rpx;
+}
+
+.delete-subject-name {
+  font-size: 30rpx;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.delete-subject-score {
+  font-size: 24rpx;
+  color: var(--text-secondary);
+}
+
+.delete-subject-check {
+  width: 44rpx;
+  height: 44rpx;
+  border-radius: 50%;
+  border: 2rpx solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24rpx;
+  color: #fff;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.delete-subject-check.checked {
+  background: #ef4444;
+  border-color: #ef4444;
+}
+
 .confirm-icon-wrap {
   width: 100rpx;
   height: 100rpx;
@@ -2557,4 +2640,41 @@ view, text, navigator, image {
   font-size: 24rpx;
   color: #8b7666;
   line-height: 1.5;
+}
+
+/* ===== AI 对话入口按钮 ===== */
+
+/* 入口1：AI 报告后的"和 AI 聊聊"按钮 */
+.ai-chat-entry {
+  margin-top: 24rpx;
+  padding: 20rpx 28rpx;
+  background: linear-gradient(135deg, rgba(113, 152, 216, 0.08), rgba(143, 132, 203, 0.08));
+  border: 1rpx solid rgba(113, 152, 216, 0.15);
+  border-radius: 16rpx;
+  text-align: center;
+  transition: all 0.2s;
+}
+
+.ai-chat-entry:active {
+  background: linear-gradient(135deg, rgba(113, 152, 216, 0.15), rgba(143, 132, 203, 0.15));
+}
+
+.ai-chat-entry-text {
+  font-size: 26rpx;
+  color: #7198d8;
+  font-weight: 500;
+}
+
+/* 入口2：科目对比旁的"AI 追问"按钮 */
+.analysis-tab.ai-chat-tab {
+  background: linear-gradient(180deg, #f0e8ff, #e8f0ff);
+  border-color: rgba(143, 132, 203, 0.25);
+  color: #8f84cb;
+  font-weight: 500;
+}
+
+.analysis-tab.ai-chat-tab:active {
+  background: linear-gradient(135deg, #7198d8, #8f84cb);
+  color: #fff;
+  border-color: transparent;
 }

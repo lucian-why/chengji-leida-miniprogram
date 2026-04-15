@@ -69,6 +69,7 @@ module.exports.getRateClass = function(score) {
       <view class="analysis-tab {{analysisMode === 'score' ? 'active' : ''}}" bindtap="switchAnalysisMode" data-mode="score">分数趋势</view>
       <view class="analysis-tab {{analysisMode === 'rank' ? 'active' : ''}}" bindtap="switchAnalysisMode" data-mode="rank">排名趋势</view>
       <view class="analysis-tab {{analysisMode === 'radar' ? 'active' : ''}}" bindtap="switchAnalysisMode" data-mode="radar">科目对比</view>
+      <view class="analysis-tab ai-chat-tab" bindtap="openAIChatFromCompare">AI 追问</view>
     </view>
 
     <view class="card chart-card" wx:if="{{analysisMode === 'score' || analysisMode === 'rank'}}">
@@ -90,7 +91,7 @@ module.exports.getRateClass = function(score) {
         <view class="rank-type-option {{rankType === 'grade' ? 'active' : ''}}" bindtap="switchRankType" data-type="grade">年级排名</view>
       </view>
 
-      <canvas canvas-id="trendChart" id="trendChart" class="trend-canvas"></canvas>
+      <canvas canvas-id="trendChart" id="trendChart" class="trend-canvas" wx:if="{{!canvasHidden}}"></canvas>
 
       <view class="chart-empty" wx:if="{{trendEmpty}}">
         <view class="chart-empty-icon">-</view>
@@ -115,7 +116,7 @@ module.exports.getRateClass = function(score) {
         <view class="radar-hint">橙色是当前考试，其余最多可选两场进行对比。</view>
       </view>
 
-      <canvas canvas-id="radarChart" id="radarChart" class="radar-canvas"></canvas>
+      <canvas canvas-id="radarChart" id="radarChart" class="radar-canvas" wx:if="{{!canvasHidden}}"></canvas>
 
       <view class="radar-summary" wx:if="{{radarBest && radarWorst && !radarEmpty}}">
         <view class="radar-summary-item best">
@@ -178,6 +179,10 @@ module.exports.getRateClass = function(score) {
           <view class="ai-analysis-card__body">
         <rich-text nodes="{{aiAnalysisHtml}}"></rich-text>
       </view>
+          <!-- 入口1：AI 报告后"和 AI 聊聊" -->
+          <view class="ai-chat-entry" bindtap="openAIChatFromReport">
+            <text class="ai-chat-entry-text">想进一步了解成绩？和 AI 聊聊 →</text>
+          </view>
         </block>
 
         <view class="ai-analysis-card__error" wx:elif="{{aiAnalysisStatus === 'error'}}">
@@ -574,6 +579,34 @@ module.exports.getRateClass = function(score) {
     <view class="modal-footer">
       <view class="btn btn-secondary" bindtap="closeConfirmModal" wx:if="{{confirmShowCancel}}">取消</view>
       <view class="btn {{confirmOkClass}}" bindtap="onConfirmOk" wx:if="{{confirmOkText}}">{{confirmOkText}}</view>
+    </view>
+  </view>
+</view>
+
+<!-- 选择删除科目弹窗 -->
+<view class="modal-mask" wx:if="{{showDeleteSubjectModal}}" bindtap="closeDeleteSubjectModal">
+  <view class="modal delete-subject-modal" catchtap="noop">
+    <view class="delete-subject-header">
+      <view class="delete-subject-title">选择要删除的科目</view>
+      <view class="modal-close" bindtap="closeDeleteSubjectModal">×</view>
+    </view>
+    <view class="delete-subject-list">
+      <view class="delete-subject-item {{item.selected ? 'selected' : ''}}" wx:for="{{deleteSubjectList}}" wx:key="index" bindtap="toggleDeleteSubject" data-index="{{index}}">
+        <view class="delete-subject-info">
+          <text class="delete-subject-name">{{item.name}}</text>
+          <text class="delete-subject-score">{{item.score}}/{{item.fullScore}}</text>
+        </view>
+        <view class="delete-subject-check {{item.selected ? 'checked' : ''}}">
+          <text wx:if="{{item.selected}}">✓</text>
+        </view>
+      </view>
+    </view>
+    <view class="modal-footer" wx:if="{{deleteSubjectSelected >= 0}}">
+      <view class="btn btn-secondary" bindtap="closeDeleteSubjectModal">取消</view>
+      <view class="btn btn-danger" bindtap="doDeleteSelectedSubject">确认删除</view>
+    </view>
+    <view class="modal-footer" wx:else>
+      <view class="btn btn-secondary" bindtap="closeDeleteSubjectModal">取消</view>
     </view>
   </view>
 </view>

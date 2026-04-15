@@ -90,7 +90,10 @@ module.exports.modal = {
   confirmOkText: '确定',
   confirmOkClass: 'btn-primary',
   confirmShowCancel: true,
-  _confirmCallback: null
+  _confirmCallback: null,
+  showDeleteSubjectModal: false,
+  deleteSubjectList: [],
+  deleteSubjectSelected: -1
 };
 
 module.exports.report = {
