@@ -1037,11 +1037,23 @@ view, text, navigator, image {
 
 /* 放大弹窗 */
 .chart-zoom-modal {
-  max-height: 90vh;
+  max-width: 100% !important;
+  width: 100%;
+  max-height: 92vh;
+  border-radius: 24rpx;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 放大弹窗的遮罩层减少左右padding，让弹窗撑满宽度 */
+.chart-zoom-mask {
+  padding: 20rpx 16rpx;
 }
 
 .chart-zoom-body {
-  padding: 24rpx 28rpx;
+  padding: 16rpx 24rpx;
+  flex: 1;
+  max-height: calc(92vh - 100rpx);
 }
 
 .zoom-trend-canvas {

@@ -182,6 +182,7 @@ Page({
   },
 
   showVipGuide() {
+    console.log('[VIP] showVipGuide triggered in ai-chat');
     wx.showModal({
       title: '获取官方兑换码',
       content: '请在 🐟闲置APP 中搜索关键词【成绩雷达小程序VIP】获取官方正版兑换码。点击下方按钮可直接复制搜索词。',

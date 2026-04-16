@@ -657,13 +657,13 @@ module.exports.getRateClass = function(score) {
   </view>
 </view>
 
-<view class="modal-mask" wx:if="{{showChartZoom}}" bindtap="closeChartZoom">
+<view class="modal-mask chart-zoom-mask" wx:if="{{showChartZoom}}" bindtap="closeChartZoom">
   <view class="modal chart-zoom-modal" catchtap="noop" catchtouchmove="">
     <view class="modal-header">
       <view class="modal-title">{{chartZoomTitle}}</view>
       <view class="modal-close" bindtap="closeChartZoom">×</view>
     </view>
-    <view class="modal-body chart-zoom-body">
+    <scroll-view scroll-y class="chart-zoom-body" catchtouchmove="">
       <block wx:if="{{chartZoomType === 'trend'}}">
         <scroll-view scroll-x class="chart-tabs-scroll">
           <view class="chart-tabs-inner">
@@ -685,7 +685,7 @@ module.exports.getRateClass = function(score) {
         <view class="radar-title">当前考试：<text class="radar-current-name">{{currentExam ? currentExam.name : '未选择'}}</text></view>
         <canvas canvas-id="zoomRadarChart" id="zoomRadarChart" class="zoom-radar-canvas"></canvas>
       </block>
-    </view>
+    </scroll-view>
   </view>
 </view>
 
