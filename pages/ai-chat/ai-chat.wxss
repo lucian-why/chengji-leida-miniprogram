@@ -212,3 +212,9 @@
   color: #b0a090;
   margin-top: 8rpx;
 }
+
+.get-vip-link {
+  color: #10a37f;
+  margin-left: 12rpx;
+  font-weight: bold;
+}

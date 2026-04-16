@@ -110,7 +110,17 @@ Page({
         `今日 AI 对话次数已用完（${chatQuota.limit}轮/${chatQuota.limit}），明天再来聊吧~ 升级 VIP 可解除限制。`,
         true
       );
-      wx.showToast({ title: '对话次数已用完', icon: 'none' });
+      wx.showModal({
+        title: '对话次数已用完',
+        content: '免费版每天可进行有限次对话，升级 VIP 解锁无限畅聊。',
+        confirmText: '获取VIP',
+        cancelText: '取消',
+        success: (res) => {
+          if (res.confirm) {
+            this.showVipGuide();
+          }
+        }
+      });
       return;
     }
 
@@ -169,5 +179,24 @@ Page({
     setTimeout(() => {
       this.setData({ scrollToId: 'msg-bottom' });
     }, 100);
+  },
+
+  showVipGuide() {
+    wx.showModal({
+      title: '获取官方兑换码',
+      content: '请在 🐟闲置APP 中搜索关键词【成绩雷达小程序VIP】获取官方正版兑换码。点击下方按钮可直接复制搜索词。',
+      confirmText: '复制搜索词',
+      cancelText: '取消',
+      success: (res) => {
+        if (res.confirm) {
+          wx.setClipboardData({
+            data: '成绩雷达小程序VIP',
+            success: () => {
+              wx.showToast({ title: '已复制搜索词', icon: 'success' });
+            }
+          });
+        }
+      }
+    });
   }
 });
