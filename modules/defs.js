@@ -101,7 +101,7 @@ module.exports.report = {
   reportType: '',
   reportLoading: false,
   reportImage: '',
-  reportCanvasHeight: 800
+  reportCanvasHeight: 0
 };
 
 module.exports.auth = {

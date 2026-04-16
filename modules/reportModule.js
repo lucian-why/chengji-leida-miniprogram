@@ -11,14 +11,19 @@ function createReportModule(page) {
     const exam = page.data.currentExam;
     if (!exam) return;
     const profile = page.data.profiles[page.data.activeProfileIndex];
+    const payload = { exam, profileName: profile ? profile.name : '' };
+    const width = 375;
+    // 先计算高度，再打开弹窗，避免高度跳变
+    const drawHeight = report.drawExamReport(null, { ...payload, width });
     page.setData({
       reportType: 'exam',
       showReportModal: true,
       reportLoading: true,
       reportImage: '',
-      _reportPayload: { exam, profileName: profile ? profile.name : '' }
+      reportCanvasHeight: drawHeight,
+      _reportPayload: payload
     });
-    setTimeout(() => _generateReport(), 300);
+    setTimeout(() => _drawCanvas(), 300);
   }
 
   function openShareProfileReport(e) {
@@ -26,48 +31,43 @@ function createReportModule(page) {
     const profile = page.data.profiles[index];
     if (!profile) return;
     const exams = require('../utils/storage').getExams(profile.id, true);
+    const payload = { profile, exams };
+    const width = 375;
+    // 先计算高度，再打开弹窗，避免高度跳变
+    const drawHeight = report.drawProfileReport(null, { ...payload, width });
     page.setData({
       reportType: 'profile',
       showReportModal: true,
       reportLoading: true,
       reportImage: '',
-      _reportPayload: { profile, exams }
+      reportCanvasHeight: drawHeight,
+      _reportPayload: payload
     });
-    setTimeout(() => _generateReport(), 300);
+    setTimeout(() => _drawCanvas(), 300);
   }
 
-  function _generateReport() {
+  function _drawCanvas() {
     const payload = page.data._reportPayload;
     const width = 375;
+    const drawHeight = page.data.reportCanvasHeight;
 
-    let drawHeight;
+    const ctx = wx.createCanvasContext('reportCanvas', page);
+
     if (page.data.reportType === 'exam') {
-      drawHeight = report.drawExamReport(null, { ...payload, width });
+      report.drawExamReport(ctx, { ...payload, width });
     } else {
-      drawHeight = report.drawProfileReport(null, { ...payload, width });
+      report.drawProfileReport(ctx, { ...payload, width });
     }
 
-    page.setData({ reportCanvasHeight: drawHeight }, () => {
+    ctx.draw(false, () => {
       setTimeout(() => {
-        const ctx = wx.createCanvasContext('reportCanvas', page);
-
-        if (page.data.reportType === 'exam') {
-          report.drawExamReport(ctx, { ...payload, width });
-        } else {
-          report.drawProfileReport(ctx, { ...payload, width });
-        }
-
-        ctx.draw(false, () => {
-          setTimeout(() => {
-            wx.canvasToTempFilePath({
-              canvasId: 'reportCanvas', x: 0, y: 0, width, height: drawHeight,
-              destWidth: width * 2, destHeight: drawHeight * 2, fileType: 'png',
-              success: (res) => { page.setData({ reportLoading: false, reportImage: res.tempFilePath }); },
-              fail: (err) => { console.error('报告生成失败', err); page.setData({ reportLoading: false }); wx.showToast({ title: '报告生成失败', icon: 'none' }); }
-            }, page);
-          }, 500);
-        });
-      }, 300);
+        wx.canvasToTempFilePath({
+          canvasId: 'reportCanvas', x: 0, y: 0, width, height: drawHeight,
+          destWidth: width * 2, destHeight: drawHeight * 2, fileType: 'png',
+          success: (res) => { page.setData({ reportLoading: false, reportImage: res.tempFilePath }); },
+          fail: (err) => { console.error('报告生成失败', err); page.setData({ reportLoading: false }); wx.showToast({ title: '报告生成失败', icon: 'none' }); }
+        }, page);
+      }, 500);
     });
   }
 

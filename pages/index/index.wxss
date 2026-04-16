@@ -1724,17 +1724,20 @@ view, text, navigator, image {
   margin: 16rpx 0;
   text-align: center;
   min-height: 200rpx;
+  max-height: 60vh;
+  overflow-y: auto;
   position: relative;
 }
 
 .report-canvas {
   width: 100%;
-  height: 800rpx;
+  display: block;
 }
 
 .report-image {
   width: 100%;
   border-radius: 16rpx;
+  display: block;
 }
 
 .report-loading {
@@ -2155,11 +2158,15 @@ view, text, navigator, image {
 }
 
 .auth-submit-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 100%;
-  text-align: center;
+  height: 88rpx;
   font-size: 30rpx;
-  padding: 20rpx;
+  padding: 0;
   border-radius: 16rpx;
+  box-sizing: border-box;
 }
 
 .auth-submit-btn.disabled {
@@ -2238,18 +2245,16 @@ view, text, navigator, image {
   align-items: center;
   justify-content: center;
   gap: 12rpx;
-  width: 100%;
-  height: 88rpx;
-  text-align: center;
+  width: 100% !important;
+  height: 88rpx !important;
   font-size: 30rpx;
-  padding: 20rpx;
+  padding: 0 !important;
   border-radius: 16rpx;
   background: #07c160;
   color: #fff;
   font-weight: 500;
   border: none;
-  margin: 0;
-  line-height: 48rpx;
+  margin: 0 !important;
   box-sizing: border-box;
 }
 
