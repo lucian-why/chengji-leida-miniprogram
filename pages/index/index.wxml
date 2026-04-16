@@ -213,9 +213,9 @@ module.exports.getRateClass = function(score) {
   </view>
 
   <view class="tab-content" wx:if="{{currentTab === 'settings'}}">
-    <!-- 云端账户 -->
+    <!-- 我的账号 -->
     <view class="card">
-      <view class="card-title">云端账户</view>
+      <view class="card-title">我的账号</view>
 
       <block wx:if="{{isLoggedIn}}">
         <view class="auth-status-row">
@@ -292,6 +292,34 @@ module.exports.getRateClass = function(score) {
       </view>
     </view>
 
+    <!-- 兑换码 -->
+    <view class="card" wx:if="{{!isVip}}">
+      <view class="card-title">兑换码</view>
+      <view class="setting-desc">输入兑换码可激活 VIP，解锁无限 AI 分析、更多档案和回收站恢复等功能。</view>
+      <view class="invite-code-row">
+        <input class="form-input invite-code-input" placeholder="请输入兑换码"
+          value="{{inviteCode}}" bindinput="onInviteCodeInput" maxlength="32" />
+        <view class="setting-btn green {{inviteCodeBusy ? 'is-disabled' : ''}}"
+          bindtap="submitInviteCode">{{inviteCodeBusy ? '兑换中...' : '兑换'}}</view>
+      </view>
+      <view class="invite-code-msg {{inviteCodeMessageType}}" wx:if="{{inviteCodeMessage}}">
+        {{inviteCodeMessage}}
+      </view>
+    </view>
+
+    <!-- 已是 VIP 提示 -->
+    <view class="card vip-active-card" wx:if="{{isVip}}">
+      <view class="card-title">👑 VIP 会员</view>
+      <view class="vip-active-info">
+        <view class="vip-active-badge">已激活</view>
+        <view class="vip-active-desc" style="display:flex; flex-direction:column; gap: 8rpx;">
+          <text>您已解锁全部高级功能</text>
+          <text wx:if="{{vipExpireDays > 0 && vipExpireDays < 9999}}" style="color: #c78d46; font-size: 24rpx;">剩余：{{vipExpireDays}} 天 (至 {{vipExpireDateStr}})</text>
+          <text wx:if="{{vipExpireDays === 9999}}" style="color: #c78d46; font-size: 24rpx;">永久 VIP 尊享用户</text>
+        </view>
+      </view>
+    </view>
+
     <view class="card">
       <view class="card-title">数据管理</view>
 
@@ -317,30 +345,6 @@ module.exports.getRateClass = function(score) {
           <view class="setting-desc">从 Excel 文件导入成绩数据。</view>
         </view>
         <view class="setting-btn" bindtap="importData">导入</view>
-      </view>
-    </view>
-
-    <!-- 邀请码 -->
-    <view class="card" wx:if="{{!isVip}}">
-      <view class="card-title">邀请码</view>
-      <view class="setting-desc">输入邀请码可激活 VIP，解锁无限 AI 分析、更多档案和回收站恢复等功能。</view>
-      <view class="invite-code-row">
-        <input class="form-input invite-code-input" placeholder="请输入邀请码"
-          value="{{inviteCode}}" bindinput="onInviteCodeInput" maxlength="32" />
-        <view class="setting-btn green {{inviteCodeBusy ? 'is-disabled' : ''}}"
-          bindtap="submitInviteCode">{{inviteCodeBusy ? '验证中...' : '激活'}}</view>
-      </view>
-      <view class="invite-code-msg {{inviteCodeMessageType}}" wx:if="{{inviteCodeMessage}}">
-        {{inviteCodeMessage}}
-      </view>
-    </view>
-
-    <!-- 已是 VIP 提示 -->
-    <view class="card vip-active-card" wx:if="{{isVip}}">
-      <view class="card-title">👑 VIP 会员</view>
-      <view class="vip-active-info">
-        <view class="vip-active-badge">已激活</view>
-        <view class="vip-active-desc">您已解锁全部功能：无限 AI 分析、更多档案、回收站恢复</view>
       </view>
     </view>
   </view>

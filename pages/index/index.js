@@ -531,6 +531,29 @@ Page({
 
   _syncAuthState() {
     const user = auth.getCurrentUser();
+    let vipExpireDays = -1;
+    let vipExpireDateStr = '';
+    let isVipUser = vip.isVip(user);
+    
+    if (isVipUser) {
+      if (user && user.role === 'admin') {
+        vipExpireDays = 9999;
+      } else if (user && user.vipExpireAt) {
+        const expireTime = new Date(user.vipExpireAt).getTime();
+        const now = Date.now();
+        if (expireTime > now) {
+          vipExpireDays = Math.ceil((expireTime - now) / (1000 * 60 * 60 * 24));
+          const date = new Date(expireTime);
+          vipExpireDateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+        } else {
+          isVipUser = false;
+        }
+      } else {
+         // 旧版永久 VIP 兼容
+         vipExpireDays = 9999;
+      }
+    }
+
     this.setData({
       authUser: user,
       isLoggedIn: !!user,
@@ -538,7 +561,9 @@ Page({
       authDisplayDesc: user
         ? '当前账号已登录，系统会自动同步云端数据。'
         : '登录后将自动同步到云端，多设备同账号保持一致。',
-      isVip: vip.isVip(user)
+      isVip: isVipUser,
+      vipExpireDays: vipExpireDays,
+      vipExpireDateStr: vipExpireDateStr
     });
   },
 
@@ -1156,31 +1181,31 @@ Page({
   async submitInviteCode() {
     const code = (this.data.inviteCode || '').trim();
     if (!code) {
-      wx.showToast({ title: '请输入邀请码', icon: 'none' });
+      wx.showToast({ title: '请输入兑换码', icon: 'none' });
       return;
     }
 
     try {
       this.setData({ inviteCodeBusy: true, inviteCodeMessage: '', inviteCodeMessageType: '' });
-      const result = await vip.redeemInviteCode(code);
+      const result = await vip.redeemVipCode(code);
 
       if (result.success) {
         this._syncAuthState();
         this.setData({
-          inviteCodeMessage: '🎉 VIP 激活成功！已解锁全部功能',
+          inviteCodeMessage: '🎉 兑换成功！',
           inviteCodeMessageType: 'success',
           inviteCode: ''
         });
-        wx.showToast({ title: 'VIP 激活成功', icon: 'success' });
+        wx.showToast({ title: '兑换成功', icon: 'success' });
       } else {
         this.setData({
-          inviteCodeMessage: result.reason || '邀请码无效',
+          inviteCodeMessage: result.reason || '兑换码无效',
           inviteCodeMessageType: 'error'
         });
       }
     } catch (err) {
       this.setData({
-        inviteCodeMessage: '激活失败，请稍后重试',
+        inviteCodeMessage: '兑换失败，请稍后重试',
         inviteCodeMessageType: 'error'
       });
     } finally {

@@ -1,0 +1,122 @@
+[
+  {
+    "code": "VM-NW4KK2GZ",
+    "type": "month",
+    "durationDays": 31,
+    "status": "unused",
+    "usedBy": "",
+    "usedTime": null
+  },
+  {
+    "code": "VM-ENMGNZJ8",
+    "type": "month",
+    "durationDays": 31,
+    "status": "unused",
+    "usedBy": "",
+    "usedTime": null
+  },
+  {
+    "code": "VM-LYTNL4LR",
+    "type": "month",
+    "durationDays": 31,
+    "status": "unused",
+    "usedBy": "",
+    "usedTime": null
+  },
+  {
+    "code": "VM-DX5X7GMG",
+    "type": "month",
+    "durationDays": 31,
+    "status": "unused",
+    "usedBy": "",
+    "usedTime": null
+  },
+  {
+    "code": "VM-TUKDRGGQ",
+    "type": "month",
+    "durationDays": 31,
+    "status": "unused",
+    "usedBy": "",
+    "usedTime": null
+  },
+  {
+    "code": "VQ-TEH95BKJ",
+    "type": "quarter",
+    "durationDays": 93,
+    "status": "unused",
+    "usedBy": "",
+    "usedTime": null
+  },
+  {
+    "code": "VQ-9WEETNF4",
+    "type": "quarter",
+    "durationDays": 93,
+    "status": "unused",
+    "usedBy": "",
+    "usedTime": null
+  },
+  {
+    "code": "VQ-WS8J4RLZ",
+    "type": "quarter",
+    "durationDays": 93,
+    "status": "unused",
+    "usedBy": "",
+    "usedTime": null
+  },
+  {
+    "code": "VQ-DVK5F9KM",
+    "type": "quarter",
+    "durationDays": 93,
+    "status": "unused",
+    "usedBy": "",
+    "usedTime": null
+  },
+  {
+    "code": "VQ-S5SJWNKY",
+    "type": "quarter",
+    "durationDays": 93,
+    "status": "unused",
+    "usedBy": "",
+    "usedTime": null
+  },
+  {
+    "code": "VY-86HX2SBK",
+    "type": "year",
+    "durationDays": 366,
+    "status": "unused",
+    "usedBy": "",
+    "usedTime": null
+  },
+  {
+    "code": "VY-HKP4HA76",
+    "type": "year",
+    "durationDays": 366,
+    "status": "unused",
+    "usedBy": "",
+    "usedTime": null
+  },
+  {
+    "code": "VY-A6QW8UET",
+    "type": "year",
+    "durationDays": 366,
+    "status": "unused",
+    "usedBy": "",
+    "usedTime": null
+  },
+  {
+    "code": "VY-27LSRMX9",
+    "type": "year",
+    "durationDays": 366,
+    "status": "unused",
+    "usedBy": "",
+    "usedTime": null
+  },
+  {
+    "code": "VY-MTLKTE2C",
+    "type": "year",
+    "durationDays": 366,
+    "status": "unused",
+    "usedBy": "",
+    "usedTime": null
+  }
+]

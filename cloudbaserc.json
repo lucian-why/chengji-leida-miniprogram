@@ -1,0 +1,13 @@
+{
+  "envId": "chengjiguanjia-1g1twvrkd736c880",
+  "functionRoot": "cloudfunctions",
+  "functions": [
+    {
+      "name": "redeemVipCode",
+      "timeout": 30,
+      "runtime": "Nodejs18.15",
+      "handler": "index.main",
+      "installDependency": true
+    }
+  ]
+}

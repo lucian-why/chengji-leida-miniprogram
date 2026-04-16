@@ -2050,7 +2050,7 @@ view, text, navigator, image {
   font-size: 24rpx;
 }
 
-/* ===== 云端账户状态区 ===== */
+/* ===== 我的账号状态区 ===== */
 .auth-status-row {
   display: flex;
   align-items: center;
