@@ -99,7 +99,11 @@ async function performFullSync(reason) {
 
     const localProfiles = storage.getAllLocalProfileBundles();
     for (const localProfile of localProfiles) {
-      await cloudSync.uploadProfile(localProfile.profileId);
+      try {
+        await cloudSync.uploadProfile(localProfile.profileId);
+      } catch (uploadErr) {
+        console.warn('[autoSync] upload failed for', localProfile.profileId, uploadErr.message);
+      }
     }
 
     lastLocalSnapshot = getLocalSnapshotKey();

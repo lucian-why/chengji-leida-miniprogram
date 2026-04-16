@@ -830,7 +830,7 @@ module.exports.getRateClass = function(score) {
     </view>
     <view class="modal-body">
       <view class="form-group">
-        <input class="form-input" placeholder="输入新昵称" maxlength="20" value="{{nicknameValue}}" bindinput="onNicknameInput" focus="{{true}}" />
+        <input type="nickname" class="form-input" placeholder="输入新昵称" maxlength="20" value="{{nicknameValue}}" bindinput="onNicknameInput" bindblur="onNicknameInput" focus="{{true}}" />
       </view>
     </view>
     <view class="modal-footer">

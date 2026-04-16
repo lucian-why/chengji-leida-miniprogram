@@ -2161,12 +2161,19 @@ view, text, navigator, image {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 100%;
+  width: 80%;
+  margin: 0 auto;
   height: 88rpx;
   font-size: 30rpx;
   padding: 0;
   border-radius: 16rpx;
   box-sizing: border-box;
+  /* 伦勃朗光影：暖金色的环境光投射在深邃的炭黑基底上，形成明暗交界 */
+  background: linear-gradient(135deg, #5c4d3c 0%, #29241f 60%, #120f0c 100%) !important;
+  color: #fdf6e3 !important;
+  border: 1rpx solid #3d342a !important;
+  box-shadow: inset 2rpx 2rpx 4rpx rgba(255, 220, 180, 0.25), inset -2rpx -2rpx 6rpx rgba(0, 0, 0, 0.6), 0 8rpx 16rpx rgba(41, 36, 31, 0.4) !important;
+  text-shadow: 0 2rpx 4rpx rgba(0, 0, 0, 0.6) !important;
 }
 
 .auth-submit-btn.disabled {
@@ -2245,17 +2252,20 @@ view, text, navigator, image {
   align-items: center;
   justify-content: center;
   gap: 12rpx;
-  width: 100% !important;
+  width: 80% !important;
+  margin: 0 auto !important;
   height: 88rpx !important;
   font-size: 30rpx;
   padding: 0 !important;
   border-radius: 16rpx;
-  background: #07c160;
-  color: #fff;
-  font-weight: 500;
-  border: none;
-  margin: 0 !important;
   box-sizing: border-box;
+  /* 伦勃朗光影：保留微信绿的色相，但加深阴影并引入左上角的立体高光 */
+  background: linear-gradient(135deg, #20a056 0%, #0d542b 60%, #053017 100%);
+  color: #e8f5e9;
+  font-weight: 500;
+  border: 1rpx solid #146c38;
+  box-shadow: inset 2rpx 2rpx 4rpx rgba(255, 255, 255, 0.3), inset -2rpx -2rpx 6rpx rgba(0, 0, 0, 0.4), 0 8rpx 16rpx rgba(13, 84, 43, 0.3);
+  text-shadow: 0 2rpx 4rpx rgba(0, 0, 0, 0.5);
 }
 
 .auth-wx-login-btn::after {
