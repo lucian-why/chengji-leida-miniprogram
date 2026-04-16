@@ -73,11 +73,6 @@ module.exports.getRateClass = function(score) {
     </view>
 
     <view class="card chart-card" wx:if="{{analysisMode === 'score' || analysisMode === 'rank'}}">
-      <view class="chart-zoom-btn" bindtap="openChartZoom" data-type="trend">
-        <text class="icon-pencil">✏</text>
-        <text class="icon-corner">+</text>
-      </view>
-
       <scroll-view scroll-x class="chart-tabs-scroll">
         <view class="chart-tabs-inner">
           <view class="chart-tab {{selectedChartSubject === '' ? 'active' : ''}}" bindtap="selectChartSubject" data-subject="">总分</view>
@@ -100,10 +95,6 @@ module.exports.getRateClass = function(score) {
     </view>
 
     <view class="card chart-card" wx:if="{{analysisMode === 'radar'}}">
-      <view class="chart-zoom-btn" bindtap="openChartZoom" data-type="radar">
-        <text class="icon-pencil">✏</text>
-        <text class="icon-corner">+</text>
-      </view>
       <view class="radar-title">当前考试：<text class="radar-current-name">{{currentExam ? currentExam.name : '未选择'}}</text></view>
 
       <view class="radar-compare" wx:if="{{radarExams.length > 0}}">
@@ -657,37 +648,6 @@ module.exports.getRateClass = function(score) {
   </view>
 </view>
 
-<view class="modal-mask chart-zoom-mask" wx:if="{{showChartZoom}}" bindtap="closeChartZoom">
-  <view class="modal chart-zoom-modal" catchtap="noop" catchtouchmove="">
-    <view class="modal-header">
-      <view class="modal-title">{{chartZoomTitle}}</view>
-      <view class="modal-close" bindtap="closeChartZoom">×</view>
-    </view>
-    <scroll-view scroll-y class="chart-zoom-body" catchtouchmove="">
-      <block wx:if="{{chartZoomType === 'trend'}}">
-        <scroll-view scroll-x class="chart-tabs-scroll">
-          <view class="chart-tabs-inner">
-            <view class="chart-tab {{zoomSelectedSubject === '' ? 'active' : ''}}" bindtap="zoomSelectSubject" data-subject="">总分</view>
-            <view class="chart-tab {{zoomSelectedSubject === item ? 'active' : ''}}"
-              wx:for="{{subjectNames}}" wx:key="*this" bindtap="zoomSelectSubject" data-subject="{{item}}">{{item}}</view>
-          </view>
-        </scroll-view>
-
-        <view class="rank-type-row" wx:if="{{analysisMode === 'rank'}}">
-          <view class="rank-type-option {{zoomRankType === 'class' ? 'active' : ''}}" bindtap="zoomSwitchRankType" data-type="class">班级排名</view>
-          <view class="rank-type-option {{zoomRankType === 'grade' ? 'active' : ''}}" bindtap="zoomSwitchRankType" data-type="grade">年级排名</view>
-        </view>
-
-        <canvas canvas-id="zoomTrendChart" id="zoomTrendChart" class="zoom-trend-canvas"></canvas>
-      </block>
-
-      <block wx:if="{{chartZoomType === 'radar'}}">
-        <view class="radar-title">当前考试：<text class="radar-current-name">{{currentExam ? currentExam.name : '未选择'}}</text></view>
-        <canvas canvas-id="zoomRadarChart" id="zoomRadarChart" class="zoom-radar-canvas"></canvas>
-      </block>
-    </scroll-view>
-  </view>
-</view>
 
 <view class="modal-mask" wx:if="{{showBatchModal}}" bindtap="closeBatchModal">
   <view class="modal batch-modal" catchtap="noop" catchtouchmove="">

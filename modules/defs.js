@@ -64,12 +64,7 @@ module.exports.chart = {
   compareExams: [],
   selectedCompareCount: 0,
   radarEmpty: false,
-  radarEmptyText: '选择考试后查看各科得分率分析',
-  showChartZoom: false,
-  chartZoomType: '',
-  chartZoomTitle: '',
-  zoomSelectedSubject: '',
-  zoomRankType: 'class'
+  radarEmptyText: '选择考试后查看各科得分率分析'
 };
 
 module.exports.profile = {
