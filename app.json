@@ -1,7 +1,15 @@
 {
   "pages": [
-    "pages/index/index",
-    "pages/ai-chat/ai-chat"
+    "pages/index/index"
+  ],
+  "subpackages": [
+    {
+      "root": "pages/ai-chat",
+      "name": "ai-chat",
+      "pages": [
+        "ai-chat"
+      ]
+    }
   ],
   "window": {
     "navigationBarTitleText": "成绩雷达",

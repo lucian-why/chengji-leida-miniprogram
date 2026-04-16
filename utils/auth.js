@@ -425,6 +425,22 @@ async function refreshUser() {
   }
 }
 
+/**
+ * 微信一键登录：获取 openid + 手机号完成登录/注册
+ * @param {string} phoneCode - getPhoneNumber 按钮回调的 code
+ */
+async function wxLogin(phoneCode) {
+  const result = await callFunction('wxLogin', { phoneCode: phoneCode || '' });
+
+  if (result.code !== 0) {
+    throw new Error(result.message || '微信登录失败');
+  }
+
+  const user = mapCloudUser(result.data);
+  saveSession({ token: result.data && result.data.token, user });
+  return { token: result.data && result.data.token, user };
+}
+
 module.exports = {
   detectAccountType,
   getCurrentUser,
@@ -437,5 +453,6 @@ module.exports = {
   register,
   resetPassword,
   updateNickname,
-  refreshUser
+  refreshUser,
+  wxLogin
 };

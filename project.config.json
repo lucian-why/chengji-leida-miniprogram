@@ -40,7 +40,15 @@
     "wxext14566970e7e9f62": "2.27.3"
   },
   "packOptions": {
-    "ignore": [],
+    "ignore": [
+      { "type": "folder", "value": "node_modules" },
+      { "type": "folder", "value": "cloudfunctions" },
+      { "type": "folder", "value": ".codebuddy" },
+      { "type": "folder", "value": "assets/miniapp" },
+      { "type": "file", "value": "sourcemap.zip" },
+      { "type": "file", "value": "package-lock.json" },
+      { "type": "glob", "value": "miniprogram_npm/**/*.map" }
+    ],
     "include": []
   },
   "editorSetting": {},

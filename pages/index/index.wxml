@@ -786,6 +786,19 @@ module.exports.getRateClass = function(score) {
         </view>
       </block>
 
+      <!-- 微信一键登录 -->
+      <view class="auth-wx-login-area" wx:if="{{authMode === 'login'}}">
+        <view class="auth-divider">
+          <view class="auth-divider-line"></view>
+          <text class="auth-divider-text">其他方式</text>
+          <view class="auth-divider-line"></view>
+        </view>
+        <button class="auth-wx-login-btn" open-type="getPhoneNumber" bindgetphonenumber="handleWxGetPhoneNumber">
+          <text class="auth-wx-icon">👤</text>
+          <text>微信一键登录</text>
+        </button>
+      </view>
+
       <!-- 提交按钮 -->
       <view class="auth-submit-area">
         <view class="btn btn-primary auth-submit-btn {{authSubmitting ? 'disabled' : ''}}" bindtap="handleAuthSubmit">

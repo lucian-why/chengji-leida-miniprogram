@@ -773,6 +773,35 @@ Page({
     }
   },
 
+  async handleWxGetPhoneNumber(e) {
+    const phoneCode = (e.detail && e.detail.code) || '';
+    try {
+      this.setData({ authSubmitting: true });
+      this._setAuthStatus('正在微信登录...', 'pending');
+      await auth.wxLogin(phoneCode);
+      this._syncAuthState();
+
+      const user = auth.getCurrentUser();
+      if (user && user.id) {
+        const { hasOrphans, orphanProfiles, orphanExamCount } = storage.detectOrphanProfiles(user.id);
+        if (hasOrphans) {
+          const profileNames = orphanProfiles.map(p => p.name).join('、');
+          this._showOrphanDataDialog(profileNames, orphanExamCount, user.id);
+        }
+      }
+
+      await autoSync.syncAfterLogin();
+      this._refreshAIStatus();
+      this._setAuthStatus('登录成功', 'success');
+      wx.showToast({ title: '登录成功', icon: 'success' });
+      setTimeout(() => this.closeAuthModal(), 500);
+    } catch (error) {
+      this._setAuthStatus(error.message || '微信登录失败', 'error');
+    } finally {
+      this.setData({ authSubmitting: false });
+    }
+  },
+
   async submitAuth() {
     const mode = this.data.authMode;
     const account = this.data.authAccount;
