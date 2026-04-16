@@ -74,12 +74,31 @@ function createProfileModule(page) {
         confirmIcon: '👑',
         confirmIconType: 'info',
         confirmTitle: '升级 VIP 解锁更多档案',
-        confirmMessage: profileCheck.reason || '免费版最多创建 2 个档案，升级 VIP 可创建更多。',
-        confirmOkText: '了解更多',
+        confirmMessage: profileCheck.reason || '免费版最多创建 2 个档案，升级 VIP 可创建更多。\n(获取 VIP：请在🐟闲置APP搜索“成绩雷达小程序VIP”)',
+        confirmOkText: '获取VIP',
         confirmOkClass: 'btn-primary',
         confirmShowCancel: true,
         _confirmCallback: () => {
-          wx.showToast({ title: '敬请期待', icon: 'none' });
+          if (page.showVipGuide) {
+            page.showVipGuide();
+          } else {
+            wx.showModal({
+              title: '获取官方兑换码',
+              content: '请在 🐟闲置APP 中搜索关键词【成绩雷达小程序VIP】获取官方正版兑换码。点击下方按钮可直接复制搜索词。',
+              confirmText: '复制搜索词',
+              cancelText: '取消',
+              success: (res) => {
+                if (res.confirm) {
+                  wx.setClipboardData({
+                    data: '成绩雷达小程序VIP',
+                    success: () => {
+                      wx.showToast({ title: '已复制搜索词', icon: 'success' });
+                    }
+                  });
+                }
+              }
+            });
+          }
         }
       });
       return;

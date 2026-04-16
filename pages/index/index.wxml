@@ -302,6 +302,9 @@ module.exports.getRateClass = function(score) {
         <view class="setting-btn green {{inviteCodeBusy ? 'is-disabled' : ''}}"
           bindtap="submitInviteCode">{{inviteCodeBusy ? '兑换中...' : '兑换'}}</view>
       </view>
+      <view class="invite-code-guide" bindtap="showVipGuide">
+        👉 如何获取兑换码？
+      </view>
       <view class="invite-code-msg {{inviteCodeMessageType}}" wx:if="{{inviteCodeMessage}}">
         {{inviteCodeMessage}}
       </view>

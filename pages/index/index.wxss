@@ -2661,6 +2661,14 @@ view, text, navigator, image {
   flex: 1;
 }
 
+.invite-code-guide {
+  margin-top: 16rpx;
+  font-size: 24rpx;
+  color: var(--text-secondary, #888);
+  display: inline-block;
+  padding: 4rpx 0;
+}
+
 .invite-code-msg {
   margin-top: 16rpx;
   font-size: 24rpx;

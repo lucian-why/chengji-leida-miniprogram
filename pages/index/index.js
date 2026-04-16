@@ -312,10 +312,12 @@ Page({
         confirmIconType: 'info',
         confirmTitle: '今日分析次数已用完',
         confirmMessage: '免费版每天可使用 2 次 AI 分析，升级 VIP 解锁无限次数。',
-        confirmOkText: '了解更多',
+        confirmOkText: '获取VIP',
         confirmOkClass: 'btn-primary',
         confirmShowCancel: true,
-        _confirmCallback: () => { wx.showToast({ title: '敬请期待', icon: 'none' }); }
+        _confirmCallback: () => { 
+          this.showVipGuide();
+        }
       });
       return;
     }
@@ -327,6 +329,25 @@ Page({
     // 强制刷新：重置 busy 状态后再调用
     this.setData({ aiAnalysisBusy: false }, () => {
       this._refreshAIAnalysis({ force: true });
+    });
+  },
+
+  showVipGuide() {
+    wx.showModal({
+      title: '获取官方兑换码',
+      content: '请在 🐟闲置APP 中搜索关键词【成绩雷达小程序VIP】获取官方正版兑换码。点击下方按钮可直接复制搜索词。',
+      confirmText: '复制搜索词',
+      cancelText: '取消',
+      success: (res) => {
+        if (res.confirm) {
+          wx.setClipboardData({
+            data: '成绩雷达小程序VIP',
+            success: () => {
+              wx.showToast({ title: '已复制搜索词', icon: 'success' });
+            }
+          });
+        }
+      }
     });
   },
 
@@ -1081,11 +1102,11 @@ Page({
         confirmIconType: 'info',
         confirmTitle: '需要 VIP 权限',
         confirmMessage: recycleCheck.reason || '升级 VIP 后可恢复已删除的档案数据。',
-        confirmOkText: '了解更多',
+        confirmOkText: '获取VIP',
         confirmOkClass: 'btn-primary',
         confirmShowCancel: true,
         _confirmCallback: () => {
-          wx.showToast({ title: '敬请期待', icon: 'none' });
+          this.showVipGuide();
         }
       });
       return;
