@@ -223,14 +223,6 @@ module.exports.getRateClass = function(score) {
 
         <view class="setting-row">
           <view class="setting-row-left">
-            <view class="setting-label">💻 扫码登录网页版</view>
-            <view class="setting-desc">扫一扫网页上的二维码进行登录。</view>
-          </view>
-          <view class="setting-btn" bindtap="scanWebLogin">扫码</view>
-        </view>
-
-        <view class="setting-row">
-          <view class="setting-row-left">
             <view class="setting-label">🗑️ 回收站</view>
             <view class="setting-desc">查看和恢复已删除的云端档案。</view>
           </view>

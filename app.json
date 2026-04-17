@@ -1,7 +1,6 @@
 {
   "pages": [
-    "pages/index/index",
-    "pages/web-login/web-login"
+    "pages/index/index"
   ],
   "subpackages": [
     {
