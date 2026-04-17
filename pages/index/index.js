@@ -693,6 +693,35 @@ Page({
     this.logout();
   },
 
+  // 扫码登录网页版
+  scanWebLogin() {
+    wx.scanCode({
+      success: (res) => {
+        const result = res.result || '';
+        // 假设网页二维码内容格式为 score-radar-login:{uuid}
+        if (result.startsWith('score-radar-login:')) {
+          const uuid = result.replace('score-radar-login:', '');
+          wx.navigateTo({
+            url: `/pages/web-login/web-login?uuid=${uuid}`
+          });
+        } else {
+          wx.showToast({
+            title: '无法识别该二维码',
+            icon: 'none'
+          });
+        }
+      },
+      fail: (err) => {
+        if (err.errMsg && !err.errMsg.includes('cancel')) {
+          wx.showToast({
+            title: '扫码失败',
+            icon: 'none'
+          });
+        }
+      }
+    });
+  },
+
   // 昵称弹窗
   openNicknameModal() {
     const user = auth.getCurrentUser();
