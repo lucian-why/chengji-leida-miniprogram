@@ -712,7 +712,7 @@ module.exports.getRateClass = function(score) {
       <view class="form-group" wx:if="{{authShowPasswordSection}}">
         <view class="form-label">密码</view>
         <view class="auth-password-wrap">
-          <input class="form-input auth-password-input" placeholder="{{authMode === 'register' ? '设置密码（至少6位）' : '请输入密码'}}" 
+          <input class="form-input auth-password-input" placeholder="{{authMode === 'register' ? '设置密码（至少6位）' : '请输入密码（至少6位）'}}" 
             password="{{!authPasswordVisible}}" value="{{authPassword}}" bindinput="onAuthInput" data-field="password" maxlength="64" />
           <view class="auth-pwd-toggle" bindtap="toggleAuthPasswordVisible" data-field="password">
             <text>{{authPasswordVisible ? '🙈' : '👁'}}</text>
