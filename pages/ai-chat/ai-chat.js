@@ -20,6 +20,7 @@ Page({
   data: {
     messages: [],       // { role: 'user'|'assistant', content: string, html: string, isError?: boolean }
     inputText: '',
+    canSend: false,
     isBusy: false,
     isLoggedIn: false,
     hasExamData: false,
@@ -96,7 +97,10 @@ Page({
   },
 
   onInput(e) {
-    this.setData({ inputText: e.detail.value });
+    this.setData({
+      inputText: e.detail.value,
+      canSend: !this.data.isBusy && e.detail.value.trim().length > 0
+    });
   },
 
   async onSend() {
@@ -127,7 +131,7 @@ Page({
     // 添加用户消息
     const userMsg = { role: 'user', content: text };
     const messages = [...this.data.messages, userMsg];
-    this.setData({ inputText: '', messages, isBusy: true });
+    this.setData({ inputText: '', canSend: false, messages, isBusy: true });
     this._scrollToBottom();
 
     try {
@@ -148,7 +152,7 @@ Page({
       this._addAssistantMessage(ai.TEXT.chatErrorRetry, true);
       wx.showToast({ title: 'AI 对话失败', icon: 'none' });
     } finally {
-      this.setData({ isBusy: false });
+      this.setData({ isBusy: false, canSend: this.data.inputText.trim().length > 0 });
       this._scrollToBottom();
     }
   },

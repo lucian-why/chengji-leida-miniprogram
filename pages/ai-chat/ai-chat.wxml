@@ -53,11 +53,11 @@
         disabled="{{isBusy}}"
         adjust-position="{{true}}"
       />
-      <view class="chat-send-btn {{isBusy || !inputText.trim() ? 'disabled' : ''}}" bindtap="onSend">发送</view>
+      <view class="chat-send-btn {{canSend ? 'active' : 'disabled'}}" bindtap="onSend">发送</view>
     </view>
     <view class="chat-quota-hint" wx:if="{{!isVip}}">
-      今日对话 {{chatUsed}}/{{chatLimit}} 轮 
-      <text class="get-vip-link" catchtap="showVipGuide">👉获取兑换码</text>
+      <text>今日对话 {{chatUsed}}/{{chatLimit}} 轮</text>
+      <view class="get-vip-link" catchtap="showVipGuide">👉获取兑换码</view>
     </view>
   </view>
 </view>
