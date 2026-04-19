@@ -7,8 +7,10 @@ const _ = db.command;
 exports.main = async (event, context) => {
   const { OPENID } = cloud.getWXContext();
   const code = (event.code || '').trim().toUpperCase();
+  const token = event.token || '';
+  const userId = event.userId || '';
 
-  if (!OPENID) {
+  if (!OPENID && (!token || !userId)) {
     return { code: -1, message: '请先登录' };
   }
   if (!code) {
@@ -17,11 +19,24 @@ exports.main = async (event, context) => {
 
   try {
     // 1. 获取用户信息
-    const userRes = await db.collection('users').where({ weixinOpenid: OPENID }).limit(1).get();
-    if (userRes.data.length === 0) {
+    let user = null;
+    if (token && userId) {
+      const userRes = await db.collection('users').where({
+        _id: userId,
+        token,
+        tokenExpireAt: _.gt(new Date())
+      }).limit(1).get();
+      user = userRes.data && userRes.data[0];
+    }
+
+    if (!user && OPENID) {
+      const userRes = await db.collection('users').where({ weixinOpenid: OPENID }).limit(1).get();
+      user = userRes.data && userRes.data[0];
+    }
+
+    if (!user) {
       return { code: -1, message: '找不到当前账号，请重新登录' };
     }
-    const user = userRes.data[0];
 
     // 2. 原生并发锁机制：原子更新 code 状态。确保同一个码不会被多人同时兑换。
     const lockRes = await db.collection('vip_codes').where({
@@ -30,7 +45,8 @@ exports.main = async (event, context) => {
     }).update({
       data: {
         status: 'used',
-        usedBy: OPENID,
+        usedBy: user._id,
+        usedByOpenid: OPENID || user.weixinOpenid || '',
         usedTime: db.serverDate()
       }
     });
@@ -80,7 +96,7 @@ exports.main = async (event, context) => {
       }
     });
 
-    console.log(`[redeemVipCode] 用户 ${OPENID} 成功核销兑换码 ${code}，新增 ${durationDays} 天`);
+    console.log(`[redeemVipCode] 用户 ${user._id} 成功核销兑换码 ${code}，新增 ${durationDays} 天`);
 
     return {
       code: 0,

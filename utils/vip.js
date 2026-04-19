@@ -285,6 +285,7 @@ async function redeemVipCode(code) {
     const result = await callFunction('redeemVipCode', {
       code: code.trim().toUpperCase(),
       userId: user.id,
+      token: auth.getStoredToken()
     });
 
     if (result.code !== 0) {
