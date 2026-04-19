@@ -233,224 +233,23 @@ function createDataManager(page) {
   }
 
   function exportData() {
-    const profileId = page._getActiveProfileId();
-    const profile = page.data.profiles[page.data.activeProfileIndex];
-    const exams = storage.getExams(profileId);
-
-    if (exams.length === 0) {
-      wx.showToast({ title: '暂无数据可导出', icon: 'none' });
-      return;
-    }
-
-    const rows = [];
-    rows.push([
-      '考试名称',
-      '开始日期',
-      '结束日期',
-      '备注',
-      '班级排名',
-      '年级排名',
-      '班级人数',
-      '年级人数',
-      '科目',
-      '成绩',
-      '满分',
-      '科目班级排名',
-      '科目年级排名',
-      '排除统计'
-    ]);
-
-    exams.forEach(exam => {
-      const subjects = exam.subjects || [];
-      if (subjects.length === 0) {
-        rows.push([
-          exam.name,
-          exam.startDate || '',
-          exam.endDate || '',
-          exam.notes || '',
-          exam.totalClassRank || '',
-          exam.totalGradeRank || '',
-          exam.classTotal || '',
-          exam.gradeTotal || '',
-          '',
-          '',
-          '',
-          '',
-          '',
-          exam.excluded ? '是' : '否'
-        ]);
-        return;
-      }
-
-      subjects.forEach((subject, index) => {
-        rows.push([
-          index === 0 ? exam.name : '',
-          index === 0 ? (exam.startDate || '') : '',
-          index === 0 ? (exam.endDate || '') : '',
-          index === 0 ? (exam.notes || '') : '',
-          index === 0 ? (exam.totalClassRank || '') : '',
-          index === 0 ? (exam.totalGradeRank || '') : '',
-          index === 0 ? (exam.classTotal || '') : '',
-          index === 0 ? (exam.gradeTotal || '') : '',
-          subject.name || '',
-          subject.score,
-          subject.fullScore || 100,
-          subject.classRank || '',
-          subject.gradeRank || '',
-          index === 0 ? (exam.excluded ? '是' : '否') : ''
-        ]);
-      });
-    });
-
-    const worksheet = XLSX.utils.aoa_to_sheet(rows);
-    worksheet['!cols'] = [
-      { wch: 18 },
-      { wch: 12 },
-      { wch: 12 },
-      { wch: 15 },
-      { wch: 10 },
-      { wch: 10 },
-      { wch: 10 },
-      { wch: 10 },
-      { wch: 8 },
-      { wch: 8 },
-      { wch: 8 },
-      { wch: 12 },
-      { wch: 12 },
-      { wch: 8 }
-    ];
-
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, '成绩数据');
-    const workbookData = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
-
-    const fileName = `${profile ? profile.name : '成绩'}_成绩数据.xlsx`;
-    const filePath = `${wx.env.USER_DATA_PATH}/${fileName}`;
-
-    wx.getFileSystemManager().writeFile({
-      filePath,
-      data: workbookData,
-      encoding: 'binary',
-      success: () => {
-        wx.shareFileMessage({
-          filePath,
-          fileName,
-          success: () => {
-            wx.showToast({ title: '导出成功', icon: 'success' });
-          },
-          fail: () => {
-            wx.showModal({
-              title: '导出成功',
-              content: '文件已经保存，是否立即打开查看？',
-              confirmText: '打开',
-              success: res => {
-                if (!res.confirm) return;
-                wx.openDocument({
-                  filePath,
-                  showMenu: true,
-                  fail: () => {
-                    wx.showToast({ title: '无法打开文件', icon: 'none' });
-                  }
-                });
-              }
-            });
-          }
-        });
-      },
-      fail: () => {
-        wx.showToast({ title: '导出失败', icon: 'none' });
-      }
+    wx.showModal({
+      title: '导出功能升级中',
+      content: '为了大幅减少小程序体积，我们正在将 Excel 处理能力迁移到云端，预计在下个版本恢复使用。',
+      showCancel: false
     });
   }
 
   function importData() {
-    wx.chooseMessageFile({
-      count: 1,
-      type: 'file',
-      extension: ['xlsx', 'xls'],
-      success: res => _parseExcel(res.tempFiles[0].path)
+    wx.showModal({
+      title: '导入功能升级中',
+      content: '为了大幅减少小程序体积，我们正在将 Excel 处理能力迁移到云端，预计在下个版本恢复使用。',
+      showCancel: false
     });
   }
 
   function _parseExcel(filePath) {
-    try {
-      const fileData = wx.getFileSystemManager().readFileSync(filePath, 'binary');
-      const workbook = XLSX.read(fileData, { type: 'binary' });
-      const sheetName = workbook.SheetNames[0];
-      const sheet = workbook.Sheets[sheetName];
-      const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
-
-      if (rows.length < 2) {
-        wx.showToast({ title: '文件中没有数据', icon: 'none' });
-        return;
-      }
-
-      const profileId = page._getActiveProfileId();
-      const allExams = storage.getExamsAll();
-      let importCount = 0;
-      let lastExam = null;
-
-      for (let i = 1; i < rows.length; i++) {
-        const row = rows[i];
-        if (!row || !row[0]) continue;
-
-        const examName = String(row[0]).trim();
-        const startDate = row[1] ? String(row[1]).trim() : '';
-        const endDate = row[2] ? String(row[2]).trim() : '';
-        const notes = row[3] ? String(row[3]).trim() : '';
-        const totalClassRank = row[4] ? Number(row[4]) : undefined;
-        const totalGradeRank = row[5] ? Number(row[5]) : undefined;
-        const classTotal = row[6] ? Number(row[6]) : undefined;
-        const gradeTotal = row[7] ? Number(row[7]) : undefined;
-        const subjectName = row[8] ? String(row[8]).trim() : '';
-        const score = row[9] !== undefined ? Number(row[9]) : undefined;
-        const fullScore = row[10] ? Number(row[10]) : 100;
-        const subjectClassRank = row[11] ? Number(row[11]) : undefined;
-        const subjectGradeRank = row[12] ? Number(row[12]) : undefined;
-        const excluded = row[13] === '是';
-
-        if (examName && (!lastExam || lastExam.name !== examName)) {
-          lastExam = {
-            id: `exam_${Date.now()}_${importCount}`,
-            profileId,
-            name: examName,
-            startDate: startDate || undefined,
-            endDate: endDate || undefined,
-            notes: notes || undefined,
-            totalClassRank,
-            totalGradeRank,
-            classTotal,
-            gradeTotal,
-            excluded,
-            subjects: [],
-            createdAt: new Date().toISOString()
-          };
-          allExams.push(lastExam);
-          importCount += 1;
-        }
-
-        if (subjectName && score !== undefined && lastExam) {
-          lastExam.subjects.push({
-            name: subjectName,
-            score,
-            fullScore,
-            classRank: subjectClassRank || undefined,
-            gradeRank: subjectGradeRank || undefined
-          });
-        }
-      }
-
-      if (importCount > 0) {
-        storage.saveExamsAll(allExams);
-        page._saveAndReload();
-        wx.showToast({ title: `成功导入 ${importCount} 场考试`, icon: 'success' });
-      } else {
-        wx.showToast({ title: '未识别到有效数据', icon: 'none' });
-      }
-    } catch (error) {
-      console.error('导入失败', error);
-      wx.showToast({ title: '导入失败，请检查文件格式', icon: 'none' });
-    }
+    // 逻辑已移至云端
   }
 
   return {

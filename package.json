@@ -2,7 +2,6 @@
   "name": "chengjileida-miniprogram",
   "version": "1.0.0",
   "private": true,
-  "dependencies": {
-    "@cloudbase/js-sdk": "^2.27.2"
-  }
+  "description": "成绩雷达微信小程序",
+  "dependencies": {}
 }

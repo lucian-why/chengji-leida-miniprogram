@@ -6,10 +6,6 @@ const ADMIN_ACCOUNT = 'admin';
 const ADMIN_PASSWORD = 'why123456';
 const ADMIN_ACCESS_TOKEN = 'xueji_admin_token_v1';
 
-let sdkApp = null;
-let sdkAuth = null;
-const resetVerificationMap = Object.create(null);
-
 function detectAccountType(value) {
   const trimmed = String(value || '').trim();
   if (!trimmed) return 'unknown';
@@ -74,7 +70,6 @@ function buildAdminUser() {
 function saveSession(payload) {
   if (payload && payload.user) {
     wx.setStorageSync(USER_KEY, JSON.stringify(payload.user));
-    // 同步 VIP 缓存，防止切换账号后旧 VIP 状态残留
     const user = payload.user;
     const vipState = (user.role === 'vip' || user.isAdmin)
       ? { isVip: true, expireAt: user.vipExpireAt || null }
@@ -84,7 +79,6 @@ function saveSession(payload) {
     try { wx.setStorageSync('xueji_vip_state', JSON.stringify(vipState)); } catch (e) {}
   } else {
     wx.removeStorageSync(USER_KEY);
-    // 登出时清除 VIP 缓存
     try { wx.removeStorageSync('xueji_vip_state'); } catch (e) {}
   }
 
@@ -110,95 +104,37 @@ function getStoredToken() {
   return wx.getStorageSync(TOKEN_KEY) || '';
 }
 
-async function getPhoneAuth() {
-  if (sdkAuth) return sdkAuth;
-
-  let cloudbase = null;
-  try {
-    cloudbase = require('@cloudbase/js-sdk');
-  } catch (error) {
-    throw new Error('手机号验证码能力依赖 CloudBase JS SDK，请先在微信开发者工具里构建 npm。');
-  }
-
-  const sdk = cloudbase.default || cloudbase;
-  sdkApp = sdk.init({
-    env: ENV_ID,
-    persistence: 'local'
-  });
-  sdkAuth = sdkApp.auth({ persistence: 'local' });
-  return sdkAuth;
-}
-
-async function buildPhoneSession(auth, fallbackPhone, result) {
-  let profile = null;
-  try {
-    profile = await auth.getUserInfo();
-  } catch (error) {
-    profile = null;
-  }
-
-  const source = (profile && (profile.userInfo || profile))
-    || (result && (result.user || (result.data && result.data.user)))
-    || {};
-
-  const token = typeof auth.getAccessToken === 'function'
-    ? (auth.getAccessToken() || '')
-    : '';
-
-  const user = {
-    id: source.uid || source.id || source.sub || '',
-    email: source.email || '',
-    phone: source.phone_number || fallbackPhone || '',
-    nickname: source.name || source.nickname || source.username || fallbackPhone || '手机用户',
-    avatarUrl: source.picture || source.avatarUrl || '',
-    isAdmin: false,
-    role: ''
-  };
-
-  saveSession({ token, user });
-  return { token, user };
-}
-
 async function signOut() {
   saveSession(null);
-  Object.keys(resetVerificationMap).forEach((key) => delete resetVerificationMap[key]);
-  // 清除 VIP 缓存，防止切换账号后旧 VIP 状态残留
   try { wx.removeStorageSync('xueji_vip_state'); } catch (e) {}
-  if (sdkAuth && typeof sdkAuth.signOut === 'function') {
-    try {
-      await sdkAuth.signOut();
-    } catch (error) {
-      // ignore
-    }
-  }
 }
 
 async function sendEmailCode(email) {
   const result = await callFunction('sendEmailCode', { email: normalizeEmail(email) });
+  if (result.code !== 0 && result.code !== 200) throw new Error(result.message || '验证码发送失败');
+  return result;
+}
+
+/**
+ * 发送短信验证码 —— 调用线上 sendSmsCode 云函数
+ * 云函数会生成验证码存入 sms_codes 集合，并通过腾讯云短信 API 发送
+ */
+async function sendSmsCode(phone, scene) {
+  const normalizedPhone = normalizePhone(phone);
+  const result = await callFunction('sendSmsCode', {
+    phone: normalizedPhone,
+    scene: scene || 'login'
+  });
   if (result.code !== 0) throw new Error(result.message || '验证码发送失败');
   return result;
 }
 
-async function sendSmsCode(phone, scene) {
-  const normalizedPhone = normalizePhone(phone);
-  const auth = await getPhoneAuth();
-  const currentScene = scene || 'login';
-
-  if (currentScene === 'resetpwd') {
-    const verificationInfo = await auth.getVerification({
-      phone_number: `+86 ${normalizedPhone}`
-    });
-    resetVerificationMap[normalizedPhone] = verificationInfo;
-    return verificationInfo;
-  }
-
-  const result = await auth.sendPhoneCode(normalizedPhone);
-  if (result && result.error) {
-    throw new Error(result.error.message || result.error.msg || '验证码发送失败');
-  }
-  return result;
-}
-
+/**
+ * 密码登录
+ * - admin: 本地校验
+ * - phone: 调用 phoneLogin 云函数（verified 模式）
+ * - email: 调用 passwordLogin 云函数
+ */
 async function passwordLogin(account, password) {
   const type = detectAccountType(account);
   const normalizedPassword = normalizePassword(password);
@@ -211,15 +147,8 @@ async function passwordLogin(account, password) {
   }
 
   if (type === 'phone') {
-    const auth = await getPhoneAuth();
-    const result = await auth.signInWithPhoneCodeOrPassword({
-      phoneNumber: normalizePhone(account),
-      password: normalizedPassword
-    });
-    if (result && result.error) {
-      throw new Error(result.error.message || result.error.msg || '登录失败');
-    }
-    return buildPhoneSession(auth, normalizePhone(account), result);
+    // 手机号+密码登录：暂时不支持，提示用户使用验证码登录
+    throw new Error('手机号暂不支持密码登录，请使用验证码登录');
   }
 
   if (type !== 'email') {
@@ -242,21 +171,25 @@ async function passwordLogin(account, password) {
   return { token: result.data && result.data.token, user };
 }
 
+/**
+ * 验证码登录
+ * - phone: 调用 phoneLogin 云函数
+ * - email: 调用 emailLogin 云函数
+ */
 async function codeLogin(account, code) {
   const type = detectAccountType(account);
   const normalizedCode = normalizeCode(code);
 
   if (type === 'phone') {
     const normalizedPhone = normalizePhone(account);
-    const auth = await getPhoneAuth();
-    const result = await auth.signInWithPhoneCodeOrPassword({
-      phoneNumber: normalizedPhone,
-      phoneCode: normalizedCode
+    const result = await callFunction('phoneLogin', {
+      phone: normalizedPhone,
+      code: normalizedCode
     });
-    if (result && result.error) {
-      throw new Error(result.error.message || result.error.msg || '登录失败');
-    }
-    return buildPhoneSession(auth, normalizedPhone, result);
+    if (result.code !== 0) throw new Error(result.message || '登录失败');
+    const user = mapCloudUser(result.data);
+    saveSession({ token: result.data && result.data.token, user });
+    return { token: result.data && result.data.token, user };
   }
 
   if (type !== 'email') {
@@ -275,6 +208,11 @@ async function codeLogin(account, code) {
   return { token: result.data && result.data.token, user };
 }
 
+/**
+ * 注册
+ * - phone: 调用 phoneRegister 云函数
+ * - email: 调用 emailRegister 云函数
+ */
 async function register(account, code, password) {
   const type = detectAccountType(account);
   const normalizedCode = normalizeCode(code);
@@ -282,12 +220,15 @@ async function register(account, code, password) {
 
   if (type === 'phone') {
     const normalizedPhone = normalizePhone(account);
-    const auth = await getPhoneAuth();
-    const result = await auth.signUpWithPhoneCode(normalizedPhone, normalizedCode, normalizedPassword);
-    if (result && result.error) {
-      throw new Error(result.error.message || result.error.msg || '注册失败');
-    }
-    return buildPhoneSession(auth, normalizedPhone, result);
+    const result = await callFunction('phoneRegister', {
+      phone: normalizedPhone,
+      code: normalizedCode,
+      password: normalizedPassword
+    });
+    if (result.code !== 0) throw new Error(result.message || '注册失败');
+    const user = mapCloudUser(result.data);
+    saveSession({ token: result.data && result.data.token, user });
+    return { token: result.data && result.data.token, user };
   }
 
   if (type !== 'email') {
@@ -307,6 +248,11 @@ async function register(account, code, password) {
   return { token: result.data && result.data.token, user };
 }
 
+/**
+ * 重置密码
+ * - phone: 调用 phoneResetPassword 云函数
+ * - email: 调用 resetPassword 云函数
+ */
 async function resetPassword(account, code, newPassword) {
   const type = detectAccountType(account);
   const normalizedCode = normalizeCode(code);
@@ -314,44 +260,15 @@ async function resetPassword(account, code, newPassword) {
 
   if (type === 'phone') {
     const normalizedPhone = normalizePhone(account);
-    const auth = await getPhoneAuth();
-    const verificationInfo = resetVerificationMap[normalizedPhone];
-    if (!verificationInfo || !verificationInfo.verification_id) {
-      throw new Error('请先发送验证码');
-    }
-
-    const verificationResult = await auth.verify({
-      verification_id: verificationInfo.verification_id,
-      verification_code: normalizedCode
+    const result = await callFunction('phoneResetPassword', {
+      phone: normalizedPhone,
+      code: normalizedCode,
+      newPassword: normalizedPassword
     });
-
-    const verificationToken = verificationResult && (verificationResult.verificationToken || verificationResult.verification_token);
-    if (!verificationToken) {
-      throw new Error('验证码校验失败，请重新发送');
-    }
-
-    const result = await auth.resetPassword({
-      phone_number: `+86 ${normalizedPhone}`,
-      password: normalizedPassword,
-      verification_token: verificationToken
-    });
-
-    if (result && result.error) {
-      throw new Error(result.error.message || result.error.msg || '重置失败');
-    }
-
-    delete resetVerificationMap[normalizedPhone];
-
-    const loginResult = await auth.signInWithPhoneCodeOrPassword({
-      phoneNumber: normalizedPhone,
-      password: normalizedPassword
-    });
-
-    if (loginResult && loginResult.error) {
-      throw new Error(loginResult.error.message || loginResult.error.msg || '重置后自动登录失败');
-    }
-
-    return buildPhoneSession(auth, normalizedPhone, loginResult);
+    if (result.code !== 0) throw new Error(result.message || '重置失败');
+    const user = mapCloudUser(result.data);
+    saveSession({ token: result.data && result.data.token, user });
+    return { token: result.data && result.data.token, user };
   }
 
   if (type !== 'email') {
@@ -391,7 +308,6 @@ async function updateNickname(userId, nickname) {
 
 /**
  * 从云端刷新当前用户信息（昵称等）
- * 在页面加载时调用，确保多端昵称同步
  */
 async function refreshUser() {
   const token = getStoredToken();
@@ -400,7 +316,6 @@ async function refreshUser() {
   try {
     const result = await callFunction('verifyToken', { token });
     if (!result || result.code !== 0 || !result.data) {
-      // token 无效，清除本地登录态
       signOut();
       return null;
     }
@@ -409,9 +324,9 @@ async function refreshUser() {
     const user = getCurrentUser();
     if (!user) return null;
 
-    // 更新本地缓存的用户信息（包括 VIP 状态）
     user.nickname = cloudData.nickname || user.nickname;
     user.email = cloudData.email || user.email;
+    user.phone = cloudData.phone || user.phone;
     user.avatarUrl = cloudData.avatarUrl || user.avatarUrl;
     if (cloudData.role) user.role = cloudData.role;
     if (cloudData.vipExpireAt || cloudData.vip_expire_at) {
@@ -426,11 +341,10 @@ async function refreshUser() {
 }
 
 /**
- * 微信一键登录：获取 openid + 手机号完成登录/注册
- * @param {string} phoneCode - getPhoneNumber 按钮回调的 code
+ * 微信一键登录：仅通过 openid 标识用户
  */
-async function wxLogin(phoneCode) {
-  const result = await callFunction('wxLogin', { phoneCode: phoneCode || '' });
+async function wxLogin() {
+  const result = await callFunction('wxLogin', {});
 
   if (result.code !== 0) {
     throw new Error(result.message || '微信登录失败');
@@ -439,6 +353,43 @@ async function wxLogin(phoneCode) {
   const user = mapCloudUser(result.data);
   saveSession({ token: result.data && result.data.token, user });
   return { token: result.data && result.data.token, user };
+}
+
+/**
+ * 绑定手机号或邮箱
+ */
+async function bindAccount(type, value, code) {
+  const token = getStoredToken();
+  if (!token) throw new Error('请先登录');
+
+  const normalizedValue = type === 'phone' ? normalizePhone(value) : normalizeEmail(value);
+  const normalizedCode = normalizeCode(code);
+
+  const result = await callFunction('bindAccount', {
+    type,
+    value: normalizedValue,
+    code: normalizedCode,
+    token
+  });
+
+  if (result.code !== 0) {
+    throw new Error(result.message || '绑定失败');
+  }
+
+  const currentUser = getCurrentUser();
+  if (currentUser && result.data && result.data.user) {
+    const updatedUser = mapCloudUser(result.data);
+    saveSession({ token: result.data.token || token, user: updatedUser });
+    return { token: result.data.token || token, user: updatedUser };
+  }
+
+  if (currentUser) {
+    if (type === 'phone') currentUser.phone = normalizedValue;
+    if (type === 'email') currentUser.email = normalizedValue;
+    saveSession({ token, user: currentUser });
+  }
+
+  return { token, user: currentUser };
 }
 
 module.exports = {
@@ -454,5 +405,6 @@ module.exports = {
   resetPassword,
   updateNickname,
   refreshUser,
-  wxLogin
+  wxLogin,
+  bindAccount
 };

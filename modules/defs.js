@@ -142,5 +142,15 @@ module.exports.auth = {
   nicknameSaving: false,
   authPasswordVisible: false,
   authNewPasswordVisible: false,
-  authConfirmPasswordVisible: false
+  authConfirmPasswordVisible: false,
+  // 绑定手机号/邮箱
+  showBindModal: false,
+  bindType: 'phone',
+  bindValue: '',
+  bindCode: '',
+  bindSendingCode: false,
+  bindCountdown: 0,
+  bindSubmitting: false,
+  bindStatusMessage: '',
+  bindStatusType: ''
 };

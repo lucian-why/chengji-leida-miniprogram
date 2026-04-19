@@ -15,7 +15,8 @@
     "checkInvalidKey": true,
     "showShadowRootInWxmlPanel": true,
     "skylineRenderEnable": false,
-    "packNpmManually": false,
+    "packNpmManually": true,
+
     "minifyWXSS": true,
     "minifyWXML": true,
     "ignoreUploadUnusedFiles": true,
@@ -47,7 +48,9 @@
       { "type": "folder", "value": "assets/miniapp" },
       { "type": "file", "value": "sourcemap.zip" },
       { "type": "file", "value": "package-lock.json" },
+      { "type": "folder", "value": "miniprogram_npm" },
       { "type": "glob", "value": "miniprogram_npm/**/*.map" }
+
     ],
     "include": []
   },

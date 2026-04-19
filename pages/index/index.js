@@ -62,26 +62,30 @@ Page({
   },
 
   onLoad() {
-    if (!_modulesRegistered) {
-      _modulesRegistered = true;
-      Object.assign(this, createExamModule(this));
-      Object.assign(this, createScoreModule(this));
-      Object.assign(this, createBatchModule(this));
-      Object.assign(this, createChartModule(this));
-      Object.assign(this, createProfileModule(this));
-      Object.assign(this, createModalModule(this));
-      Object.assign(this, createReportModule(this));
-      Object.assign(this, createDataManager(this));
-    }
+    try {
+      if (!_modulesRegistered) {
+        _modulesRegistered = true;
+        Object.assign(this, createExamModule(this));
+        Object.assign(this, createScoreModule(this));
+        Object.assign(this, createBatchModule(this));
+        Object.assign(this, createChartModule(this));
+        Object.assign(this, createProfileModule(this));
+        Object.assign(this, createModalModule(this));
+        Object.assign(this, createReportModule(this));
+        Object.assign(this, createDataManager(this));
+      }
 
-    storage.migrateProfilesIfNeeded();
-    autoSync.initAutoSync({
-      onStatusChange: (message, type) => this._setSyncStatus(message, type),
-      onRefresh: () => this._loadData()
-    });
-    this._loadData();
-    this._syncAuthState();
-    this._checkFirstLaunch();
+      storage.migrateProfilesIfNeeded();
+      autoSync.initAutoSync({
+        onStatusChange: (message, type) => this._setSyncStatus(message, type),
+        onRefresh: () => this._loadData()
+      });
+      this._loadData();
+      this._syncAuthState();
+      this._checkFirstLaunch();
+    } catch (err) {
+      console.error('[index] onLoad error:', err);
+    }
   },
 
   async onShow() {
@@ -822,12 +826,11 @@ Page({
     }
   },
 
-  async handleWxGetPhoneNumber(e) {
-    const phoneCode = (e.detail && e.detail.code) || '';
+  async handleWxLogin() {
     try {
       this.setData({ authSubmitting: true });
       this._setAuthStatus('正在微信登录...', 'pending');
-      await auth.wxLogin(phoneCode);
+      await auth.wxLogin();
       this._syncAuthState();
 
       const user = auth.getCurrentUser();
@@ -1234,6 +1237,133 @@ Page({
       });
     } finally {
       this.setData({ inviteCodeBusy: false });
+    }
+  },
+
+  // ======================== 绑定手机号/邮箱 ========================
+
+  _bindCountdownTimer: null,
+
+  openBindModal(e) {
+    const type = e.currentTarget.dataset.type;
+    const user = auth.getCurrentUser();
+
+    // 已绑定则不可操作
+    if (type === 'phone' && user && user.phone) return;
+    if (type === 'email' && user && user.email) return;
+
+    this.setData({
+      showBindModal: true,
+      bindType: type,
+      bindValue: '',
+      bindCode: '',
+      bindSendingCode: false,
+      bindCountdown: 0,
+      bindSubmitting: false,
+      bindStatusMessage: '',
+      bindStatusType: ''
+    });
+  },
+
+  closeBindModal() {
+    if (this._bindCountdownTimer) {
+      clearInterval(this._bindCountdownTimer);
+      this._bindCountdownTimer = null;
+    }
+    this.setData({
+      showBindModal: false,
+      bindValue: '',
+      bindCode: '',
+      bindSendingCode: false,
+      bindCountdown: 0,
+      bindSubmitting: false,
+      bindStatusMessage: '',
+      bindStatusType: ''
+    });
+  },
+
+  onBindInput(e) {
+    const field = e.currentTarget.dataset.field;
+    const dataKey = field === 'value' ? 'bindValue' : 'bindCode';
+    this.setData({ [dataKey]: e.detail.value });
+  },
+
+  _startBindCountdown() {
+    if (this._bindCountdownTimer) {
+      clearInterval(this._bindCountdownTimer);
+    }
+    this.setData({ bindCountdown: 60, bindSendingCode: false });
+    this._bindCountdownTimer = setInterval(() => {
+      const next = this.data.bindCountdown - 1;
+      if (next <= 0) {
+        clearInterval(this._bindCountdownTimer);
+        this._bindCountdownTimer = null;
+        this.setData({ bindCountdown: 0 });
+        return;
+      }
+      this.setData({ bindCountdown: next });
+    }, 1000);
+  },
+
+  async handleBindSendCode() {
+    const { bindType, bindValue, bindSendingCode, bindCountdown } = this.data;
+    if (bindSendingCode || bindCountdown > 0) return;
+
+    const type = auth.detectAccountType(bindValue);
+    if (bindType === 'phone' && type !== 'phone') {
+      this.setData({ bindStatusMessage: '请输入正确的手机号', bindStatusType: 'error' });
+      return;
+    }
+    if (bindType === 'email' && type !== 'email') {
+      this.setData({ bindStatusMessage: '请输入正确的邮箱地址', bindStatusType: 'error' });
+      return;
+    }
+
+    try {
+      this.setData({ bindSendingCode: true, bindStatusMessage: '正在发送验证码...', bindStatusType: 'pending' });
+      if (bindType === 'phone') {
+        await auth.sendSmsCode(bindValue, 'bind');
+      } else {
+        await auth.sendEmailCode(bindValue);
+      }
+      this.setData({ bindStatusMessage: '验证码已发送', bindStatusType: 'success' });
+      this._startBindCountdown();
+    } catch (error) {
+      this.setData({ bindStatusMessage: error.message || '验证码发送失败', bindStatusType: 'error', bindSendingCode: false });
+    }
+  },
+
+  async handleBindSubmit() {
+    const { bindType, bindValue, bindCode, bindSubmitting } = this.data;
+    if (bindSubmitting) return;
+
+    if (!bindValue) {
+      this.setData({ bindStatusMessage: bindType === 'phone' ? '请输入手机号' : '请输入邮箱地址', bindStatusType: 'error' });
+      return;
+    }
+    if (!bindCode || bindCode.length !== 6) {
+      this.setData({ bindStatusMessage: '请输入6位验证码', bindStatusType: 'error' });
+      return;
+    }
+
+    try {
+      this.setData({ bindSubmitting: true, bindStatusMessage: '正在绑定...', bindStatusType: 'pending' });
+      const result = await auth.bindAccount(bindType, bindValue, bindCode);
+      this._syncAuthState();
+
+      // 刷新用户信息
+      await auth.refreshUser().catch(() => {});
+      this._syncAuthState();
+
+      const label = bindType === 'phone' ? '手机号' : '邮箱';
+      const merged = result.merged ? '，已自动合并账号数据' : '';
+      this.setData({ bindStatusMessage: `${label}绑定成功${merged}`, bindStatusType: 'success' });
+      wx.showToast({ title: '绑定成功', icon: 'success' });
+      setTimeout(() => this.closeBindModal(), 1000);
+    } catch (error) {
+      this.setData({ bindStatusMessage: error.message || '绑定失败', bindStatusType: 'error' });
+    } finally {
+      this.setData({ bindSubmitting: false });
     }
   }
 });
