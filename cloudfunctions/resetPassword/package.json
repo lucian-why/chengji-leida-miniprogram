@@ -1,0 +1,1 @@
+{"name": "resetPassword", "version": "1.0.0", "description": "成绩雷达 - 忘记密码/重置密码", "main": "index.js", "dependencies": {"@cloudbase/node-sdk": "^2.6.0", "bcryptjs": "^2.4.3"}}

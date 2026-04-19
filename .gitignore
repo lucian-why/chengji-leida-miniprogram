@@ -4,8 +4,8 @@ node_modules/
 # Build output
 miniprogram_npm/
 
-# Cloud functions (managed via CloudBase MCP, not locally)
-cloudfunctions/
+# Cloud functions source
+cloudfunctions/**/node_modules/
 
 # Private config
 project.private.config.json

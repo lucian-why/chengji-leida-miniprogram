@@ -1,0 +1,1 @@
+{"name": "sendEmailCode", "version": "1.0.0", "description": "成绩雷达 - 发送邮箱验证码", "main": "index.js", "dependencies": {"@cloudbase/node-sdk": "^2.6.0", "nodemailer": "^6.9.0"}}

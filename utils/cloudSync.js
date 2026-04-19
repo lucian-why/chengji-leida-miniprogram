@@ -10,6 +10,14 @@ function ensureLoggedIn() {
   return user;
 }
 
+function getAuthPayload(user) {
+  return {
+    token: auth.getStoredToken(),
+    userId: user.id || '',
+    userEmail: user.email || ''
+  };
+}
+
 function unwrapResult(result, fallbackMessage) {
   if (!result) {
     throw new Error(fallbackMessage);
@@ -23,8 +31,7 @@ function unwrapResult(result, fallbackMessage) {
 async function getCloudProfiles() {
   const user = ensureLoggedIn();
   const result = await callFunction('listCloudProfiles', {
-    userId: user.id || '',
-    userEmail: user.email || ''
+    ...getAuthPayload(user)
   });
   const data = unwrapResult(result, '读取云端档案失败');
   return Array.isArray(data) ? data : [];
@@ -34,8 +41,7 @@ async function getDeletedCloudProfiles() {
   const user = ensureLoggedIn();
   const result = await callFunction('listCloudProfiles', {
     showDeleted: true,
-    userId: user.id || '',
-    userEmail: user.email || ''
+    ...getAuthPayload(user)
   });
   const data = unwrapResult(result, '读取回收站列表失败');
   const rows = Array.isArray(data) ? data : (data?.profiles || data?.list || []);
@@ -72,8 +78,7 @@ async function uploadProfile(profileId) {
     profileData: bundleInfo.bundle,
     examCount: bundleInfo.examCount,
     dataSize: bundleInfo.dataSize,
-    userId: user.id || '',
-    userEmail: user.email || ''
+    ...getAuthPayload(user)
   });
 
   return unwrapResult(result, '上传到云端失败');
@@ -87,8 +92,7 @@ async function downloadProfile(cloudProfileId, targetProfileId, targetProfileNam
 
   const result = await callFunction('getCloudProfileData', {
     profileId: cloudProfileId,
-    userId: user.id || '',
-    userEmail: user.email || ''
+    ...getAuthPayload(user)
   });
   const data = unwrapResult(result, '读取云端档案详情失败');
 
@@ -119,8 +123,7 @@ async function deleteCloudProfiles(profileIds) {
 
   const result = await callFunction('deleteCloudProfiles', {
     profileIds: ids,
-    userId: user.id || '',
-    userEmail: user.email || ''
+    ...getAuthPayload(user)
   });
   return unwrapResult(result, '删除云端档案失败');
 }
@@ -134,8 +137,7 @@ async function restoreDeletedProfiles(profileIds) {
 
   const result = await callFunction('restoreCloudProfiles', {
     profileIds: ids,
-    userId: user.id || '',
-    userEmail: user.email || ''
+    ...getAuthPayload(user)
   });
   return unwrapResult(result, '恢复档案失败');
 }
@@ -149,8 +151,7 @@ async function purgeDeletedProfiles(profileIds) {
 
   const result = await callFunction('purgeDeletedProfiles', {
     profileIds: ids,
-    userId: user.id || '',
-    userEmail: user.email || ''
+    ...getAuthPayload(user)
   });
   return unwrapResult(result, '彻底删除档案失败');
 }
@@ -172,6 +173,7 @@ async function archiveOrphanProfiles(currentUserId) {
         examCount: bundle.examCount,
         dataSize: bundle.dataSize,
         userId: currentUserId,
+        token: auth.getStoredToken(),
         deleted: true,
         deletedAt: new Date().toISOString()
       });

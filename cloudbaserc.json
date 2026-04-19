@@ -17,7 +17,119 @@
       "installDependency": true
     },
     {
-      "name": "sendSmsCode",
+      "name": "sendEmailCode",
+      "timeout": 30,
+      "runtime": "Nodejs18.15",
+      "handler": "index.main",
+      "installDependency": true
+    },
+    {
+      "name": "emailLogin",
+      "timeout": 30,
+      "runtime": "Nodejs18.15",
+      "handler": "index.main",
+      "installDependency": true
+    },
+    {
+      "name": "emailRegister",
+      "timeout": 30,
+      "runtime": "Nodejs18.15",
+      "handler": "index.main",
+      "installDependency": true
+    },
+    {
+      "name": "passwordLogin",
+      "timeout": 30,
+      "runtime": "Nodejs18.15",
+      "handler": "index.main",
+      "installDependency": true
+    },
+    {
+      "name": "resetPassword",
+      "timeout": 30,
+      "runtime": "Nodejs18.15",
+      "handler": "index.main",
+      "installDependency": true
+    },
+    {
+      "name": "ai_service",
+      "timeout": 30,
+      "runtime": "Nodejs18.15",
+      "handler": "index.main",
+      "installDependency": true
+    },
+    {
+      "name": "adminLogin",
+      "timeout": 30,
+      "runtime": "Nodejs18.15",
+      "handler": "index.main",
+      "installDependency": true
+    },
+    {
+      "name": "syncOfficialUser",
+      "timeout": 30,
+      "runtime": "Nodejs18.15",
+      "handler": "index.main",
+      "installDependency": true
+    },
+    {
+      "name": "wxLogin",
+      "timeout": 30,
+      "runtime": "Nodejs18.15",
+      "handler": "index.main",
+      "installDependency": true
+    },
+    {
+      "name": "verifyToken",
+      "timeout": 30,
+      "runtime": "Nodejs18.15",
+      "handler": "index.main",
+      "installDependency": true
+    },
+    {
+      "name": "updateNickname",
+      "timeout": 30,
+      "runtime": "Nodejs18.15",
+      "handler": "index.main",
+      "installDependency": true
+    },
+    {
+      "name": "listCloudProfiles",
+      "timeout": 30,
+      "runtime": "Nodejs18.15",
+      "handler": "index.main",
+      "installDependency": true
+    },
+    {
+      "name": "uploadCloudProfile",
+      "timeout": 30,
+      "runtime": "Nodejs18.15",
+      "handler": "index.main",
+      "installDependency": true
+    },
+    {
+      "name": "getCloudProfileData",
+      "timeout": 30,
+      "runtime": "Nodejs18.15",
+      "handler": "index.main",
+      "installDependency": true
+    },
+    {
+      "name": "deleteCloudProfiles",
+      "timeout": 30,
+      "runtime": "Nodejs18.15",
+      "handler": "index.main",
+      "installDependency": true
+    },
+    {
+      "name": "restoreCloudProfiles",
+      "timeout": 30,
+      "runtime": "Nodejs18.15",
+      "handler": "index.main",
+      "installDependency": true
+    },
+    {
+      "name": "purgeDeletedProfiles",
       "timeout": 30,
       "runtime": "Nodejs18.15",
       "handler": "index.main",

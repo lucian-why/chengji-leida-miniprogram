@@ -1,4 +1,5 @@
 const storage = require('../utils/storage');
+const validation = require('../utils/validation');
 
 function createExamModule(page) {
   function addDays(dateString, days) {
@@ -85,12 +86,12 @@ function createExamModule(page) {
     if (!rawValue) {
       delete allExams[index].manualTotalScore;
     } else {
-      const total = Number(rawValue);
-      if (Number.isNaN(total)) {
-        wx.showToast({ title: '请输入有效总分', icon: 'none' });
+      const parsedTotal = validation.parseNonNegativeNumber(rawValue, '总分');
+      if (!parsedTotal.ok) {
+        wx.showToast({ title: parsedTotal.message, icon: 'none' });
         return;
       }
-      allExams[index].manualTotalScore = total;
+      allExams[index].manualTotalScore = parsedTotal.value;
     }
 
     page.setData({ isEditingTotalScore: false, editingTotalScore: '' });
@@ -206,10 +207,26 @@ function createExamModule(page) {
       return;
     }
 
+    if (form.startDate && form.endDate && new Date(form.endDate).getTime() < new Date(form.startDate).getTime()) {
+      wx.showToast({ title: '结束日期不能早于开始日期', icon: 'none' });
+      return;
+    }
+
+    const classRank = validation.parseRankPair(form.totalClassRank, form.classTotal, '班级排名', '班级总人数');
+    if (!classRank.ok) {
+      wx.showToast({ title: classRank.message, icon: 'none' });
+      return;
+    }
+    const gradeRank = validation.parseRankPair(form.totalGradeRank, form.gradeTotal, '年级排名', '年级总人数');
+    if (!gradeRank.ok) {
+      wx.showToast({ title: gradeRank.message, icon: 'none' });
+      return;
+    }
+
     const profileId = page._getActiveProfileId();
     storage.rememberExamDefaults(profileId, {
-      classTotal: form.classTotal ? Number(form.classTotal) : null,
-      gradeTotal: form.gradeTotal ? Number(form.gradeTotal) : null
+      classTotal: classRank.total || null,
+      gradeTotal: gradeRank.total || null
     });
 
     if (page.data.editExamId) {
@@ -222,10 +239,10 @@ function createExamModule(page) {
           startDate: form.startDate,
           endDate: form.endDate,
           notes: form.notes.trim(),
-          totalClassRank: form.totalClassRank ? Number(form.totalClassRank) : undefined,
-          totalGradeRank: form.totalGradeRank ? Number(form.totalGradeRank) : undefined,
-          classTotal: form.classTotal ? Number(form.classTotal) : undefined,
-          gradeTotal: form.gradeTotal ? Number(form.gradeTotal) : undefined
+          totalClassRank: classRank.rank,
+          totalGradeRank: gradeRank.rank,
+          classTotal: classRank.total,
+          gradeTotal: gradeRank.total
         };
         storage.saveExamsAll(allExams);
       }
@@ -237,10 +254,10 @@ function createExamModule(page) {
         startDate: form.startDate,
         endDate: form.endDate,
         notes: form.notes.trim(),
-        totalClassRank: form.totalClassRank ? Number(form.totalClassRank) : undefined,
-        totalGradeRank: form.totalGradeRank ? Number(form.totalGradeRank) : undefined,
-        classTotal: form.classTotal ? Number(form.classTotal) : undefined,
-        gradeTotal: form.gradeTotal ? Number(form.gradeTotal) : undefined,
+        totalClassRank: classRank.rank,
+        totalGradeRank: gradeRank.rank,
+        classTotal: classRank.total,
+        gradeTotal: gradeRank.total,
         subjects: [],
         createdAt: new Date().toISOString()
       };

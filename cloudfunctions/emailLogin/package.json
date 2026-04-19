@@ -1,0 +1,1 @@
+{"name": "emailLogin", "version": "1.0.0", "description": "成绩雷达 - 邮箱验证码登录（免密码）", "main": "index.js", "dependencies": {"@cloudbase/node-sdk": "^2.6.0"}}

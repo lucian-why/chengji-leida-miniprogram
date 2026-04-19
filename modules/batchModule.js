@@ -1,4 +1,5 @@
 const storage = require('../utils/storage');
+const validation = require('../utils/validation');
 
 function createBatchModule(page) {
   function noop() {}
@@ -87,11 +88,35 @@ function createBatchModule(page) {
       return;
     }
 
+    const parsedSubjects = [];
     for (const s of validSubjects) {
-      if (s.score === '' || isNaN(Number(s.score))) {
-        wx.showToast({ title: `“${s.name}”成绩无效`, icon: 'none' });
+      const name = s.name.trim();
+      if (s.score === '') {
+        wx.showToast({ title: `“${name}”请输入成绩`, icon: 'none' });
         return;
       }
+      const scoreFields = validation.parseScoreFields(s.score, s.fullScore, `“${name}”`);
+      if (!scoreFields.ok) {
+        wx.showToast({ title: scoreFields.message, icon: 'none' });
+        return;
+      }
+      const classRank = validation.parseOptionalPositiveInteger(s.classRank, `“${name}”班级排名`);
+      if (!classRank.ok) {
+        wx.showToast({ title: classRank.message, icon: 'none' });
+        return;
+      }
+      const gradeRank = validation.parseOptionalPositiveInteger(s.gradeRank, `“${name}”年级排名`);
+      if (!gradeRank.ok) {
+        wx.showToast({ title: gradeRank.message, icon: 'none' });
+        return;
+      }
+      parsedSubjects.push({
+        name,
+        score: scoreFields.score,
+        fullScore: scoreFields.fullScore,
+        classRank: classRank.value,
+        gradeRank: gradeRank.value
+      });
     }
 
     const target = getCurrentExamSnapshot();
@@ -101,13 +126,7 @@ function createBatchModule(page) {
     const currentExamIndex = allExams.findIndex(ex => ex.id === target.id);
     if (currentExamIndex === -1) return;
 
-    allExams[currentExamIndex].subjects = validSubjects.map(s => ({
-      name: s.name.trim(),
-      score: Number(s.score),
-      fullScore: Number(s.fullScore) || 100,
-      classRank: s.classRank ? Number(s.classRank) : undefined,
-      gradeRank: s.gradeRank ? Number(s.gradeRank) : undefined
-    }));
+    allExams[currentExamIndex].subjects = parsedSubjects;
 
     storage.saveExamsAll(allExams);
     page.setData({ showBatchModal: false, batchList: [], newBatchSubject: '' });

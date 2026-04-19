@@ -1,10 +1,12 @@
 const { callFunction, ENV_ID } = require('./cloud');
 
 const TOKEN_KEY = 'xueji_auth_token';
+const REFRESH_TOKEN_KEY = 'xueji_auth_refresh_token';
 const USER_KEY = 'xueji_auth_user';
+const DEVICE_KEY = 'xueji_auth_device_id';
+const VERIFICATION_PREFIX = 'xueji_auth_verification_';
+const AUTH_API_BASE = `https://${ENV_ID}.api.tcloudbasegateway.com`;
 const ADMIN_ACCOUNT = 'admin';
-const ADMIN_PASSWORD = 'why123456';
-const ADMIN_ACCESS_TOKEN = 'xueji_admin_token_v1';
 
 function detectAccountType(value) {
   const trimmed = String(value || '').trim();
@@ -25,6 +27,10 @@ function normalizePhone(phone) {
   const value = String(phone || '').trim();
   if (!/^1[3-9]\d{9}$/.test(value)) throw new Error('请输入正确的手机号');
   return value;
+}
+
+function toCloudbasePhone(phone) {
+  return `+86 ${normalizePhone(phone)}`;
 }
 
 function normalizeCode(code) {
@@ -54,16 +60,20 @@ function mapCloudUser(data) {
   };
 }
 
-function buildAdminUser() {
+function mapOfficialUser(profile, tokenData) {
+  const user = profile || {};
+  const phone = String(user.phone_number || user.phone || '').replace(/^\+86\s*/, '');
+  const groups = Array.isArray(user.groups) ? user.groups.map(g => g.id || g).filter(Boolean) : [];
+  const role = groups.includes('admin') ? 'admin' : (groups.includes('vip') ? 'vip' : '');
   return {
-    id: 'local-admin',
-    email: '',
-    phone: '',
-    nickname: '管理员',
-    avatarUrl: '',
-    isAdmin: true,
-    role: 'admin',
-    accessToken: ADMIN_ACCESS_TOKEN
+    id: user.sub || user.user_id || tokenData?.sub || '',
+    email: user.email || '',
+    phone,
+    nickname: user.name || user.username || user.email || phone || '云端用户',
+    avatarUrl: user.picture || user.avatar_url || '',
+    isAdmin: groups.includes('admin'),
+    role,
+    vipExpireAt: user.vipExpireAt || user.vip_expire_at || user.meta?.vipExpireAt || null
   };
 }
 
@@ -87,6 +97,12 @@ function saveSession(payload) {
   } else {
     wx.removeStorageSync(TOKEN_KEY);
   }
+
+  if (payload && payload.refreshToken) {
+    wx.setStorageSync(REFRESH_TOKEN_KEY, payload.refreshToken);
+  } else if (!payload) {
+    wx.removeStorageSync(REFRESH_TOKEN_KEY);
+  }
 }
 
 function getCurrentUser() {
@@ -109,30 +125,221 @@ async function signOut() {
   try { wx.removeStorageSync('xueji_vip_state'); } catch (e) {}
 }
 
-async function sendEmailCode(email) {
-  const result = await callFunction('sendEmailCode', { email: normalizeEmail(email) });
-  if (result.code !== 0 && result.code !== 200) throw new Error(result.message || '验证码发送失败');
+function getDeviceId() {
+  let deviceId = wx.getStorageSync(DEVICE_KEY);
+  if (!deviceId) {
+    deviceId = `mp_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+    wx.setStorageSync(DEVICE_KEY, deviceId);
+  }
+  return deviceId;
+}
+
+function buildAuthUrl(path) {
+  return `${AUTH_API_BASE}${path}`;
+}
+
+function normalizeAuthApiError(data, fallbackMessage) {
+  const message = data?.error_description || data?.message || data?.error || fallbackMessage;
+  if (data?.error === 'captcha_required') {
+    return new Error('当前操作需要图片验证码，请稍后重试或换用其他登录方式');
+  }
+  if (data?.error === 'rate_limit_exceeded') {
+    return new Error('验证码发送过于频繁，请稍后再试');
+  }
+  if (data?.error === 'user_not_found') {
+    return new Error('该手机号尚未注册，请先注册账号');
+  }
+  if (data?.error === 'invalid_verification_code') {
+    return new Error('验证码错误，请重新输入');
+  }
+  return new Error(message || fallbackMessage);
+}
+
+function authApiRequest(path, options) {
+  options = options || {};
+  const method = options.method || 'POST';
+  const headers = {
+    'content-type': 'application/json',
+    'x-device-id': getDeviceId()
+  };
+  if (options.token) {
+    headers.Authorization = `Bearer ${options.token}`;
+  }
+  if (options.captchaToken) {
+    headers['x-captcha-token'] = options.captchaToken;
+  }
+
+  return new Promise((resolve, reject) => {
+    wx.request({
+      url: buildAuthUrl(path),
+      method,
+      header: headers,
+      data: options.data || {},
+      timeout: options.timeout || 20000,
+      success(res) {
+        const data = res.data || {};
+        if (res.statusCode >= 200 && res.statusCode < 300 && !data.error) {
+          resolve(data);
+          return;
+        }
+        reject(normalizeAuthApiError(data, options.fallbackMessage || '认证服务请求失败'));
+      },
+      fail(err) {
+        reject(new Error(err?.errMsg || '认证服务请求失败'));
+      }
+    });
+  });
+}
+
+function getVerificationStorageKey(account, scene) {
+  return `${VERIFICATION_PREFIX}${scene || 'login'}_${String(account || '').trim().toLowerCase()}`;
+}
+
+function saveVerificationState(account, scene, data) {
+  wx.setStorageSync(getVerificationStorageKey(account, scene), JSON.stringify({
+    verificationId: data.verification_id,
+    isUser: !!data.is_user,
+    expiresAt: Date.now() + Number(data.expires_in || 600) * 1000
+  }));
+}
+
+function getVerificationState(account, scene) {
+  const key = getVerificationStorageKey(account, scene);
+  const raw = wx.getStorageSync(key);
+  if (!raw) throw new Error('请先获取验证码');
+  let state;
+  try {
+    state = JSON.parse(raw);
+  } catch (error) {
+    wx.removeStorageSync(key);
+    throw new Error('验证码状态已失效，请重新获取');
+  }
+  if (!state.verificationId || Date.now() > state.expiresAt) {
+    wx.removeStorageSync(key);
+    throw new Error('验证码已过期，请重新获取');
+  }
+  return { ...state, key };
+}
+
+function clearVerificationState(account, scene) {
+  wx.removeStorageSync(getVerificationStorageKey(account, scene));
+}
+
+function getVerificationPayload(account, scene) {
+  const state = getVerificationState(account, scene);
+  return {
+    verificationId: state.verificationId,
+    deviceId: getDeviceId()
+  };
+}
+
+function getOfficialTarget(scene) {
+  return (scene === 'sms_login' || scene === 'resetpwd') ? 'USER' : 'ANY';
+}
+
+async function sendOfficialPhoneCode(phone, scene) {
+  const normalizedPhone = normalizePhone(phone);
+  const result = await authApiRequest('/auth/v1/verification', {
+    data: {
+      phone_number: toCloudbasePhone(normalizedPhone),
+      target: getOfficialTarget(scene)
+    },
+    fallbackMessage: '验证码发送失败'
+  });
+  if (!result.verification_id) throw new Error('验证码发送失败，请稍后重试');
+  saveVerificationState(normalizedPhone, scene, result);
   return result;
 }
 
-/**
- * 发送短信验证码 —— 调用线上 sendSmsCode 云函数
- * 云函数会生成验证码存入 sms_codes 集合，并通过腾讯云短信 API 发送
- */
-async function sendSmsCode(phone, scene) {
-  const normalizedPhone = normalizePhone(phone);
-  const result = await callFunction('sendSmsCode', {
-    phone: normalizedPhone,
-    scene: scene || 'login'
+async function verifyOfficialCode(account, code, scene) {
+  const normalizedPhone = normalizePhone(account);
+  const state = getVerificationState(normalizedPhone, scene);
+  const result = await authApiRequest('/auth/v1/verification/verify', {
+    data: {
+      verification_id: state.verificationId,
+      verification_code: normalizeCode(code)
+    },
+    fallbackMessage: '验证码校验失败'
+  });
+  if (!result.verification_token) throw new Error('验证码校验失败，请重新输入');
+  clearVerificationState(normalizedPhone, scene);
+  return result.verification_token;
+}
+
+async function fetchOfficialProfile(token) {
+  return authApiRequest('/auth/v1/user/me', {
+    method: 'GET',
+    token,
+    fallbackMessage: '读取用户信息失败'
+  });
+}
+
+async function saveOfficialSession(tokenData) {
+  const token = tokenData?.access_token || '';
+  if (!token) throw new Error('登录失败：未返回访问令牌');
+  const profile = await fetchOfficialProfile(token).catch(() => null);
+  try {
+    const result = await callFunction('syncOfficialUser', {
+      accessToken: token,
+      refreshToken: tokenData.refresh_token || ''
+    });
+    if (result && result.code === 0 && result.data) {
+      const user = mapCloudUser(result.data);
+      saveSession({ token: result.data.token || token, refreshToken: tokenData.refresh_token || '', user });
+      return { token: result.data.token || token, user };
+    }
+  } catch (error) {
+    console.warn('[auth] syncOfficialUser fallback:', error.message || error);
+  }
+
+  const user = mapOfficialUser(profile, tokenData);
+  saveSession({
+    token,
+    refreshToken: tokenData.refresh_token || '',
+    user
+  });
+  return { token, user };
+}
+
+async function officialSignInWithVerification(verificationToken) {
+  const result = await authApiRequest('/auth/v1/signin', {
+    data: { verification_token: verificationToken },
+    fallbackMessage: '登录失败'
+  });
+  return saveOfficialSession(result);
+}
+
+async function officialSignUpWithPhone(phone, verificationToken, password) {
+  const result = await authApiRequest('/auth/v1/signup', {
+    data: {
+      phone_number: toCloudbasePhone(phone),
+      verification_token: verificationToken,
+      password
+    },
+    fallbackMessage: '注册失败'
+  });
+  return saveOfficialSession(result);
+}
+
+async function sendEmailCode(email) {
+  const result = await callFunction('sendEmailCode', {
+    email: normalizeEmail(email)
   });
   if (result.code !== 0) throw new Error(result.message || '验证码发送失败');
   return result;
 }
 
 /**
+ * 发送短信验证码：使用 CloudBase 身份认证官方默认短信渠道
+ */
+async function sendSmsCode(phone, scene) {
+  return sendOfficialPhoneCode(phone, scene || 'sms_login');
+}
+
+/**
  * 密码登录
- * - admin: 本地校验
- * - phone: 调用 phoneLogin 云函数（verified 模式）
+ * - admin: 调用 adminLogin 云函数
+ * - phone: 暂不支持密码登录
  * - email: 调用 passwordLogin 云函数
  */
 async function passwordLogin(account, password) {
@@ -140,10 +347,11 @@ async function passwordLogin(account, password) {
   const normalizedPassword = normalizePassword(password);
 
   if (type === 'admin') {
-    if (normalizedPassword !== ADMIN_PASSWORD) throw new Error('账号或密码错误');
-    const user = buildAdminUser();
-    saveSession({ token: user.accessToken, user });
-    return { token: user.accessToken, user };
+    const result = await callFunction('adminLogin', { password: normalizedPassword });
+    if (result.code !== 0) throw new Error(result.message || '账号或密码错误');
+    const user = mapCloudUser(result.data);
+    saveSession({ token: result.data && result.data.token, user });
+    return { token: result.data && result.data.token, user };
   }
 
   if (type === 'phone') {
@@ -171,25 +379,14 @@ async function passwordLogin(account, password) {
   return { token: result.data && result.data.token, user };
 }
 
-/**
- * 验证码登录
- * - phone: 调用 phoneLogin 云函数
- * - email: 调用 emailLogin 云函数
- */
 async function codeLogin(account, code) {
   const type = detectAccountType(account);
   const normalizedCode = normalizeCode(code);
 
   if (type === 'phone') {
     const normalizedPhone = normalizePhone(account);
-    const result = await callFunction('phoneLogin', {
-      phone: normalizedPhone,
-      code: normalizedCode
-    });
-    if (result.code !== 0) throw new Error(result.message || '登录失败');
-    const user = mapCloudUser(result.data);
-    saveSession({ token: result.data && result.data.token, user });
-    return { token: result.data && result.data.token, user };
+    const verificationToken = await verifyOfficialCode(normalizedPhone, normalizedCode, 'sms_login');
+    return officialSignInWithVerification(verificationToken);
   }
 
   if (type !== 'email') {
@@ -208,11 +405,6 @@ async function codeLogin(account, code) {
   return { token: result.data && result.data.token, user };
 }
 
-/**
- * 注册
- * - phone: 调用 phoneRegister 云函数
- * - email: 调用 emailRegister 云函数
- */
 async function register(account, code, password) {
   const type = detectAccountType(account);
   const normalizedCode = normalizeCode(code);
@@ -220,15 +412,8 @@ async function register(account, code, password) {
 
   if (type === 'phone') {
     const normalizedPhone = normalizePhone(account);
-    const result = await callFunction('phoneRegister', {
-      phone: normalizedPhone,
-      code: normalizedCode,
-      password: normalizedPassword
-    });
-    if (result.code !== 0) throw new Error(result.message || '注册失败');
-    const user = mapCloudUser(result.data);
-    saveSession({ token: result.data && result.data.token, user });
-    return { token: result.data && result.data.token, user };
+    const verificationToken = await verifyOfficialCode(normalizedPhone, normalizedCode, 'register');
+    return officialSignUpWithPhone(normalizedPhone, verificationToken, normalizedPassword);
   }
 
   if (type !== 'email') {
@@ -248,11 +433,6 @@ async function register(account, code, password) {
   return { token: result.data && result.data.token, user };
 }
 
-/**
- * 重置密码
- * - phone: 调用 phoneResetPassword 云函数
- * - email: 调用 resetPassword 云函数
- */
 async function resetPassword(account, code, newPassword) {
   const type = detectAccountType(account);
   const normalizedCode = normalizeCode(code);
@@ -260,15 +440,23 @@ async function resetPassword(account, code, newPassword) {
 
   if (type === 'phone') {
     const normalizedPhone = normalizePhone(account);
-    const result = await callFunction('phoneResetPassword', {
-      phone: normalizedPhone,
-      code: normalizedCode,
-      newPassword: normalizedPassword
+    const verificationToken = await verifyOfficialCode(normalizedPhone, normalizedCode, 'resetpwd');
+    const session = await officialSignInWithVerification(verificationToken);
+    const sudo = await authApiRequest('/auth/v1/user/sudo', {
+      token: session.token,
+      data: { verification_token: verificationToken },
+      fallbackMessage: '重置密码验证失败'
     });
-    if (result.code !== 0) throw new Error(result.message || '重置失败');
-    const user = mapCloudUser(result.data);
-    saveSession({ token: result.data && result.data.token, user });
-    return { token: result.data && result.data.token, user };
+    await authApiRequest(`/auth/v1/user/password?sudo_token=${encodeURIComponent(sudo.sudo_token || '')}`, {
+      method: 'PATCH',
+      token: session.token,
+      data: {
+        new_password: normalizedPassword,
+        confirm_password: normalizedPassword
+      },
+      fallbackMessage: '重置密码失败'
+    });
+    return session;
   }
 
   if (type !== 'email') {
@@ -306,7 +494,7 @@ async function updateNickname(userId, nickname) {
   return result.data;
 }
 
-/**
+/*
  * 从云端刷新当前用户信息（昵称等）
  */
 async function refreshUser() {
@@ -316,8 +504,15 @@ async function refreshUser() {
   try {
     const result = await callFunction('verifyToken', { token });
     if (!result || result.code !== 0 || !result.data) {
-      signOut();
-      return null;
+      try {
+        const officialProfile = await fetchOfficialProfile(token);
+        const user = mapOfficialUser(officialProfile, { access_token: token });
+        saveSession({ token, refreshToken: wx.getStorageSync(REFRESH_TOKEN_KEY) || '', user });
+        return user;
+      } catch (officialError) {
+        signOut();
+        return null;
+      }
     }
 
     const cloudData = result.data;
@@ -364,6 +559,27 @@ async function bindAccount(type, value, code) {
 
   const normalizedValue = type === 'phone' ? normalizePhone(value) : normalizeEmail(value);
   const normalizedCode = normalizeCode(code);
+
+  if (type === 'phone') {
+    const verification = getVerificationPayload(normalizedValue, 'bind');
+    const result = await callFunction('bindAccount', {
+      type,
+      value: normalizedValue,
+      code: normalizedCode,
+      token,
+      verificationId: verification.verificationId,
+      deviceId: verification.deviceId
+    });
+
+    if (result.code !== 0) {
+      throw new Error(result.message || '绑定失败');
+    }
+
+    clearVerificationState(normalizedValue, 'bind');
+    const updatedUser = mapCloudUser(result.data);
+    saveSession({ token: result.data.token || token, user: updatedUser });
+    return { token: result.data.token || token, user: updatedUser };
+  }
 
   const result = await callFunction('bindAccount', {
     type,

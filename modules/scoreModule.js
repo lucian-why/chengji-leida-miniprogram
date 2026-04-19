@@ -1,4 +1,5 @@
 const storage = require('../utils/storage');
+const validation = require('../utils/validation');
 
 function createScoreModule(page) {
   function applyRememberedSubjectFullScore(subjectName) {
@@ -79,8 +80,23 @@ function createScoreModule(page) {
       wx.showToast({ title: '请输入科目名称', icon: 'none' });
       return;
     }
-    if (form.score === '' || Number.isNaN(Number(form.score))) {
-      wx.showToast({ title: '请输入有效成绩', icon: 'none' });
+    if (form.score === '') {
+      wx.showToast({ title: '请输入成绩', icon: 'none' });
+      return;
+    }
+    const scoreFields = validation.parseScoreFields(form.score, form.fullScore, form.name.trim());
+    if (!scoreFields.ok) {
+      wx.showToast({ title: scoreFields.message, icon: 'none' });
+      return;
+    }
+    const classRank = validation.parseOptionalPositiveInteger(form.classRank, '班级排名');
+    if (!classRank.ok) {
+      wx.showToast({ title: classRank.message, icon: 'none' });
+      return;
+    }
+    const gradeRank = validation.parseOptionalPositiveInteger(form.gradeRank, '年级排名');
+    if (!gradeRank.ok) {
+      wx.showToast({ title: gradeRank.message, icon: 'none' });
       return;
     }
 
@@ -94,10 +110,10 @@ function createScoreModule(page) {
 
     const subjectData = {
       name: form.name.trim(),
-      score: Number(form.score),
-      fullScore: form.fullScore ? Number(form.fullScore) : 100,
-      classRank: form.classRank ? Number(form.classRank) : undefined,
-      gradeRank: form.gradeRank ? Number(form.gradeRank) : undefined,
+      score: scoreFields.score,
+      fullScore: scoreFields.fullScore,
+      classRank: classRank.value,
+      gradeRank: gradeRank.value,
       notes: form.notes.trim()
     };
 
