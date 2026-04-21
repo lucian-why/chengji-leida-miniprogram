@@ -24,6 +24,22 @@ function writeJSON(key, value) {
   wx.setStorageSync(key, JSON.stringify(value));
 }
 
+function nowISOString() {
+  return new Date().toISOString();
+}
+
+function toTimestamp(value) {
+  const timestamp = new Date(value || 0).getTime();
+  return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
+function withoutUpdatedAt(value) {
+  if (!value || typeof value !== 'object') return value;
+  const clone = JSON.parse(JSON.stringify(value));
+  delete clone.updatedAt;
+  return clone;
+}
+
 function notifyChange(change) {
   if (_silentMode) return;
   if (typeof _storageHooks.isSuppressed === 'function' && _storageHooks.isSuppressed()) return;
@@ -36,8 +52,24 @@ function getProfiles() {
   return readJSON(PROFILES_KEY, []);
 }
 
-function saveProfiles(profiles) {
-  writeJSON(PROFILES_KEY, profiles);
+function saveProfiles(profiles, options = {}) {
+  const shouldTouch = options.touch !== false;
+  const previousProfiles = shouldTouch ? getProfiles() : [];
+  const previousMap = new Map(previousProfiles.map((profile) => [profile.id, profile]));
+  const now = nowISOString();
+  const nextProfiles = shouldTouch
+    ? profiles.map((profile) => {
+        const previous = previousMap.get(profile.id);
+        const createdAt = profile.createdAt || previous?.createdAt || now;
+        const changed = !previous || JSON.stringify(withoutUpdatedAt(previous)) !== JSON.stringify(withoutUpdatedAt({ ...profile, createdAt }));
+        return {
+          ...profile,
+          createdAt,
+          updatedAt: changed ? now : (profile.updatedAt || previous?.updatedAt || createdAt)
+        };
+      })
+    : profiles;
+  writeJSON(PROFILES_KEY, nextProfiles);
   notifyChange({ type: 'profiles-save' });
 }
 
@@ -53,8 +85,69 @@ function getExamsAll() {
   return readJSON(EXAMS_KEY, []);
 }
 
-function saveExamsAll(exams) {
-  writeJSON(EXAMS_KEY, exams);
+function touchProfiles(profileIds, timestamp) {
+  const ids = new Set((profileIds || []).filter(Boolean));
+  if (!ids.size) return;
+  const profiles = getProfiles();
+  let changed = false;
+  const nextProfiles = profiles.map((profile) => {
+    if (!ids.has(profile.id)) return profile;
+    changed = true;
+    return {
+      ...profile,
+      updatedAt: timestamp || nowISOString()
+    };
+  });
+  if (changed) {
+    writeJSON(PROFILES_KEY, nextProfiles);
+  }
+}
+
+function markProfileCloudSynced(profileId, syncedAt) {
+  if (!profileId || !syncedAt) return;
+  const profiles = getProfiles();
+  const target = profiles.find((profile) => profile.id === profileId);
+  if (!target) return;
+  target.lastCloudSyncAt = syncedAt;
+  writeJSON(PROFILES_KEY, profiles);
+}
+
+function saveExamsAll(exams, options = {}) {
+  const shouldTouch = options.touch !== false;
+  const previousExams = shouldTouch ? getExamsAll() : [];
+  const previousMap = new Map(previousExams.map((exam) => [exam.id, exam]));
+  const nextExams = shouldTouch
+    ? exams.map((exam) => {
+        const now = nowISOString();
+        const previous = previousMap.get(exam.id);
+        const createdAt = exam.createdAt || previous?.createdAt || now;
+        const normalized = { ...exam, createdAt };
+        const changed = !previous || JSON.stringify(withoutUpdatedAt(previous)) !== JSON.stringify(withoutUpdatedAt(normalized));
+        return {
+          ...normalized,
+          updatedAt: changed ? now : (exam.updatedAt || previous?.updatedAt || createdAt)
+        };
+      })
+    : exams;
+
+  const touchedProfileIds = new Set();
+  if (shouldTouch) {
+    nextExams.forEach((exam) => {
+      const previous = previousMap.get(exam.id);
+      if (!previous || JSON.stringify(withoutUpdatedAt(previous)) !== JSON.stringify(withoutUpdatedAt(exam))) {
+        touchedProfileIds.add(exam.profileId);
+      }
+    });
+    const nextIds = new Set(nextExams.map((exam) => exam.id));
+    previousExams.forEach((exam) => {
+      if (!nextIds.has(exam.id)) touchedProfileIds.add(exam.profileId);
+    });
+  }
+
+  writeJSON(EXAMS_KEY, nextExams);
+  if (shouldTouch && touchedProfileIds.size) {
+    touchProfiles(Array.from(touchedProfileIds), nowISOString());
+  }
   notifyChange({ type: 'exams-save' });
 }
 
@@ -86,7 +179,8 @@ function createProfile(name, options) {
     id,
     name,
     isDemo,
-    createdAt: new Date().toISOString()
+    createdAt: nowISOString(),
+    updatedAt: nowISOString()
   };
   if (ownerId) profile.ownerId = ownerId;
   profiles.push(profile);
@@ -99,6 +193,7 @@ function updateProfile(id, name) {
   const target = profiles.find((item) => item.id === id);
   if (target) {
     target.name = name;
+    target.updatedAt = nowISOString();
     saveProfiles(profiles);
   }
 }
@@ -250,6 +345,16 @@ function estimateByteSize(value) {
   return JSON.stringify(value).length;
 }
 
+function getLocalProfileUpdatedAt(profile, exams = []) {
+  const times = [
+    toTimestamp(profile?.lastCloudSyncAt),
+    toTimestamp(profile?.updatedAt),
+    toTimestamp(profile?.createdAt),
+    ...exams.map((exam) => getExamTimestamp(exam))
+  ];
+  return Math.max(...times.filter((timestamp) => Number.isFinite(timestamp)), 0);
+}
+
 function getLocalProfileBundle(profileId) {
   const profiles = getProfiles();
   const profile = profiles.find((item) => item.id === profileId);
@@ -257,6 +362,7 @@ function getLocalProfileBundle(profileId) {
 
   const exams = getExams(profileId);
   const formMemory = getProfileMemory(profileId);
+  const localUpdatedAt = getLocalProfileUpdatedAt(profile, exams);
   const bundle = {
     profile: { ...profile },
     exams: exams.map((exam) => ({ ...exam })),
@@ -272,6 +378,7 @@ function getLocalProfileBundle(profileId) {
     profileName: profile.name,
     examCount: exams.length,
     dataSize: estimateByteSize(bundle),
+    localUpdatedAt: localUpdatedAt ? new Date(localUpdatedAt).toISOString() : '',
     bundle
   };
 }
@@ -340,8 +447,8 @@ function applyCloudProfileBundle(cloudBundle, currentUserId) {
     incomingExams
   );
 
-  saveProfiles(localProfiles);
-  saveExamsAll(otherExams.concat(mergedProfileExams));
+  saveProfiles(localProfiles, { touch: false });
+  saveExamsAll(otherExams.concat(mergedProfileExams), { touch: false });
   setProfileMemory(incomingProfile.id, payload.formMemory || {});
 }
 
@@ -374,6 +481,7 @@ function claimOrphanProfiles(currentUserId) {
   profiles.forEach(p => {
     if (!p.isDemo && (!p.ownerId || p.ownerId !== currentUserId)) {
       p.ownerId = currentUserId;
+      p.updatedAt = nowISOString();
       changed = true;
     }
   });
@@ -382,21 +490,20 @@ function claimOrphanProfiles(currentUserId) {
   }
 }
 
-/**
- * 将孤儿档案从本地清除（选"不同步"时调用）
- * 返回被清除的 bundle 列表，供上传到回收站使用
- */
-function removeOrphanProfiles(currentUserId) {
+function getOrphanProfileBundles(currentUserId) {
   const profiles = getProfiles();
   const orphanProfiles = profiles.filter(p => !p.isDemo && (!p.ownerId || p.ownerId !== currentUserId));
 
   if (orphanProfiles.length === 0) return [];
 
-  // 收集被清除的 bundle
-  const removedBundles = orphanProfiles.map(p => getLocalProfileBundle(p.id)).filter(Boolean);
+  return orphanProfiles.map(p => getLocalProfileBundle(p.id)).filter(Boolean);
+}
 
-  // 清除 orphan 档案和考试
-  const orphanIds = new Set(orphanProfiles.map(p => p.id));
+function removeProfilesByIds(profileIds) {
+  const orphanIds = new Set((profileIds || []).filter(Boolean));
+  if (orphanIds.size === 0) return 0;
+
+  const profiles = getProfiles();
   const remainingProfiles = profiles.filter(p => !orphanIds.has(p.id));
   const remainingExams = getExamsAll().filter(e => !orphanIds.has(e.profileId));
 
@@ -415,6 +522,16 @@ function removeOrphanProfiles(currentUserId) {
   }
 
   notifyChange({ type: 'orphan-removed' });
+  return profiles.length - remainingProfiles.length;
+}
+
+/**
+ * 将孤儿档案从本地清除（选"不同步"时调用）
+ * 返回被清除的 bundle 列表，供上传到回收站使用
+ */
+function removeOrphanProfiles(currentUserId) {
+  const removedBundles = getOrphanProfileBundles(currentUserId);
+  removeProfilesByIds(removedBundles.map((bundle) => bundle.profileId));
   return removedBundles;
 }
 
@@ -433,6 +550,7 @@ module.exports = {
   createProfile,
   updateProfile,
   deleteProfile,
+  markProfileCloudSynced,
   saveTrendMode,
   getTrendMode,
   saveRadarSelection,
@@ -451,5 +569,7 @@ module.exports = {
   setSilentMode,
   detectOrphanProfiles,
   claimOrphanProfiles,
+  getOrphanProfileBundles,
+  removeProfilesByIds,
   removeOrphanProfiles
 };

@@ -22,8 +22,6 @@ const createModalModule = require('../../modules/modalModule');
 const createReportModule = require('../../modules/reportModule');
 const createDataManager = require('../../modules/dataManager');
 
-let _modulesRegistered = false;
-
 function getAuthModeMeta(mode) {
   if (mode === 'sms_login') return { title: '验证码登录', submitText: '登录' };
   if (mode === 'register') return { title: '注册账号', submitText: '注册' };
@@ -63,8 +61,7 @@ Page({
 
   onLoad() {
     try {
-      if (!_modulesRegistered) {
-        _modulesRegistered = true;
+      if (!this._modulesRegistered) {
         Object.assign(this, createExamModule(this));
         Object.assign(this, createScoreModule(this));
         Object.assign(this, createBatchModule(this));
@@ -73,6 +70,7 @@ Page({
         Object.assign(this, createModalModule(this));
         Object.assign(this, createReportModule(this));
         Object.assign(this, createDataManager(this));
+        this._modulesRegistered = true;
       }
 
       storage.migrateProfilesIfNeeded();

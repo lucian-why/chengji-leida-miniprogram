@@ -51,6 +51,11 @@ function getLocalSnapshotKey() {
   ]));
 }
 
+function getProfileTime(profile) {
+  const timestamp = new Date(profile?.deletedAt || profile?.lastSyncAt || profile?.updatedAt || profile?.createdAt || 0).getTime();
+  return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
 async function performFullSync(reason) {
   if (syncing) {
     pendingRun = true;
@@ -69,13 +74,33 @@ async function performFullSync(reason) {
   setStatus(reason === 'login' ? '正在同步云端档案…' : '正在同步最新变更…', 'pending');
 
   try {
+    const deletedCloudProfiles = await cloudSync.getDeletedCloudProfiles();
+    const deletedCloudMap = new Map(deletedCloudProfiles.map((item) => [item.profileId, item]));
+    const appliedDeletedIds = new Set();
+    let localMap = new Map(storage.getAllLocalProfileBundles().map((item) => [item.profileId, item]));
+
+    for (const deletedProfile of deletedCloudProfiles) {
+      const localProfile = localMap.get(deletedProfile.profileId);
+      if (!localProfile) continue;
+
+      const cloudDeleteTime = getProfileTime(deletedProfile);
+      const localTime = new Date(localProfile.localUpdatedAt || localProfile.bundle?.exportedAt || 0).getTime();
+      if (!localTime || cloudDeleteTime >= localTime) {
+        await runSuppressed(async () => {
+          storage.removeProfilesByIds([deletedProfile.profileId]);
+        });
+        appliedDeletedIds.add(deletedProfile.profileId);
+      }
+    }
+
     const cloudProfiles = await cloudSync.getCloudProfiles();
-    const localMap = new Map(storage.getAllLocalProfileBundles().map((item) => [item.profileId, item]));
+    localMap = new Map(storage.getAllLocalProfileBundles().map((item) => [item.profileId, item]));
 
     for (const cloudProfile of cloudProfiles) {
+      if (appliedDeletedIds.has(cloudProfile.profileId)) continue;
       const localProfile = localMap.get(cloudProfile.profileId);
       const cloudTime = new Date(cloudProfile.lastSyncAt || 0).getTime();
-      const localTime = localProfile ? new Date(localProfile.bundle?.exportedAt || 0).getTime() : 0;
+      const localTime = localProfile ? new Date(localProfile.localUpdatedAt || localProfile.bundle?.exportedAt || 0).getTime() : 0;
 
       if (!localProfile || cloudTime > localTime) {
         try {
@@ -99,6 +124,10 @@ async function performFullSync(reason) {
 
     const localProfiles = storage.getAllLocalProfileBundles();
     for (const localProfile of localProfiles) {
+      const deletedProfile = deletedCloudMap.get(localProfile.profileId);
+      if (deletedProfile && getProfileTime(deletedProfile) >= new Date(localProfile.localUpdatedAt || 0).getTime()) {
+        continue;
+      }
       try {
         await cloudSync.uploadProfile(localProfile.profileId);
       } catch (uploadErr) {

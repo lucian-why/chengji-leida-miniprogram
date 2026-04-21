@@ -589,7 +589,7 @@ module.exports.getRateClass = function(score) {
   </view>
 </view>
 
-<view class="modal-mask" wx:if="{{showConfirmModal}}" bindtap="closeConfirmModal">
+<view class="modal-mask confirm-modal-mask" wx:if="{{showConfirmModal}}" bindtap="closeConfirmModal">
   <view class="modal confirm-modal" catchtap="noop">
     <view class="confirm-icon-wrap {{confirmIconType}}">
       <text>{{confirmIcon}}</text>

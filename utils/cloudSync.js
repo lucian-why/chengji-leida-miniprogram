@@ -81,7 +81,11 @@ async function uploadProfile(profileId) {
     ...getAuthPayload(user)
   });
 
-  return unwrapResult(result, '上传到云端失败');
+  const data = unwrapResult(result, '上传到云端失败');
+  if (data?.lastSyncAt) {
+    storage.markProfileCloudSynced(bundleInfo.profileId, data.lastSyncAt);
+  }
+  return data;
 }
 
 async function downloadProfile(cloudProfileId, targetProfileId, targetProfileName) {
@@ -102,6 +106,7 @@ async function downloadProfile(cloudProfileId, targetProfileId, targetProfileNam
   if (payload && payload.profile && targetProfileId) {
     payload.profile.id = targetProfileId;
     payload.profile.name = targetProfileName || payload.profile.name;
+    payload.profile.lastCloudSyncAt = data.lastSyncAt || data.updatedAt || data.createdAt || payload.profile.lastCloudSyncAt;
     if (Array.isArray(payload.exams)) {
       payload.exams = payload.exams.map((exam) => ({
         ...exam,
@@ -160,13 +165,14 @@ async function purgeDeletedProfiles(profileIds) {
  * 归档孤儿档案到当前账号的回收站，并从本地删除
  */
 async function archiveOrphanProfiles(currentUserId) {
-  const removedBundles = storage.removeOrphanProfiles(currentUserId);
-  if (removedBundles.length === 0) return 0;
+  const orphanBundles = storage.getOrphanProfileBundles(currentUserId);
+  if (orphanBundles.length === 0) return 0;
 
   let archivedCount = 0;
-  for (const bundle of removedBundles) {
+  const failures = [];
+  for (const bundle of orphanBundles) {
     try {
-      const result = await callFunction('uploadCloudProfile', {
+      await callFunction('uploadCloudProfile', {
         profileId: bundle.profileId,
         profileName: bundle.profileName,
         profileData: bundle.bundle,
@@ -179,10 +185,16 @@ async function archiveOrphanProfiles(currentUserId) {
       });
       archivedCount++;
     } catch (err) {
+      failures.push(bundle.profileName || bundle.profileId);
       console.warn('[cloudSync] 归档档案到回收站失败:', bundle.profileName, err && err.message || err);
     }
   }
 
+  if (failures.length > 0) {
+    throw new Error(`归档失败，已保留本地数据：${failures.join('、')}`);
+  }
+
+  storage.removeProfilesByIds(orphanBundles.map((bundle) => bundle.profileId));
   return archivedCount;
 }
 

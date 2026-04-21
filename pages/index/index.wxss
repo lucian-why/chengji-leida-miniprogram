@@ -1400,6 +1400,10 @@ view, text, navigator, image {
   animation: fadeIn 0.2s ease;
 }
 
+.confirm-modal-mask {
+  z-index: 1300;
+}
+
 .modal {
   background: var(--bg-card);
   border-radius: 28rpx;
