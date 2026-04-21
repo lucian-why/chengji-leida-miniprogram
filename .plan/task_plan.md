@@ -6,7 +6,7 @@
 
 ## Current Status
 
-- 当前阶段：Phase 5 AI 配额与服务端成本控制 Review 已完成，待确认修复
+- 当前阶段：Phase 5 AI 配额服务端轻量修复已部署
 - 执行模式：分块 Review，发现 P1/P2 后由用户确认再修
 - 已部署修复：短信官方 Auth、admin 云端鉴权、TOKEN_SALT、syncOfficialUser、redeemVipCode token 鉴权
 
@@ -19,7 +19,7 @@
 | Phase 2 | complete | VIP 兑换兼容手机号/邮箱 | 已修并部署 |
 | Phase 3 | complete | 云同步与数据生命周期 | 已修并提交 `54ca2ff` |
 | Phase 4 | complete | 成绩计算、图表、报告 | 已修并提交 `46add6b` |
-| Phase 5 | complete | AI 配额与服务端成本控制 | 已产出 findings，待确认修复 |
+| Phase 5 | complete | AI 配额与服务端成本控制 | P1 轻量修复已部署；P2 输入限制待确认 |
 | Phase 6 | pending | 最小手测清单与最终报告 | 待整理 |
 
 ## Phase 3 Review Targets

@@ -15,7 +15,7 @@
  */
 
 const { callFunction } = require('./cloud');
-const { getCurrentUser } = require('./auth');
+const { getCurrentUser, getStoredToken } = require('./auth');
 const { getExams, getActiveProfileId } = require('./storage');
 const { getDisplayTotalScore } = require('./format');
 
@@ -53,6 +53,14 @@ const TEXT = {
   chatEntryReport: '想进一步了解成绩？和 AI 聊聊 →',
   chatEntryCompare: 'AI 追问'
 };
+
+function getAIAuthPayload() {
+  const user = getCurrentUser();
+  return {
+    token: getStoredToken(),
+    userId: user && user.id ? user.id : ''
+  };
+}
 
 const MINI_PROGRAM_AI_PROVIDER = 'hunyuan-exp';
 const MINI_PROGRAM_AI_MODEL = 'hunyuan-2.0-instruct-20251111';
@@ -422,6 +430,7 @@ async function refreshAIAnalysis({ force = false } = {}) {
       try {
         console.log('[AI] 尝试云函数 ai_service, timeout:', CLOUD_FUNCTION_TIMEOUT);
         const result = await callFunction('ai_service', {
+          ...getAIAuthPayload(),
           action: 'analyze',
           data: { exams: payload }
         }, { timeout: CLOUD_FUNCTION_TIMEOUT });
@@ -525,6 +534,7 @@ async function parseBatchSubjects(rawText, subjectHints = []) {
       console.warn('[AI] 原生 AI 识别失败，回退云函数:', directError.message || directError);
       try {
         const result = await callFunction('ai_service', {
+          ...getAIAuthPayload(),
           action: 'inputParse',
           data: { text, subjectHints }
         });
@@ -671,6 +681,7 @@ async function sendChatMessage({ messages, timeout } = {}) {
   // ② 回退到云函数 chat action
   try {
     const result = await callFunction('ai_service', {
+      ...getAIAuthPayload(),
       action: 'chat',
       data: { messages }
     }, { timeout: CLOUD_FUNCTION_TIMEOUT });

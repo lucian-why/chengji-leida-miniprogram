@@ -137,3 +137,16 @@
 - Files: `utils/ai.js`, `pages/index/index.js`, `pages/ai-chat/ai-chat.js`
 - Evidence: AI analyze has mini-program timeout, cloud-function timeout, local fallback, and page-level safety timer; chat failures clear busy state in `finally`.
 - Impact: No obvious black-screen/loading-deadlock issue found in this pass.
+
+## Phase 5 Fixes Applied
+
+### Fixed: AI cloud function does not enforce login or quota
+- Files: `cloudfunctions/ai_service/index.js`, `utils/ai.js`
+- Change: `utils/ai.js` now passes `token + userId` to cloud-function fallback calls. `ai_service` validates legacy `users.token`, rejects expired/banned accounts, and records daily usage in `ai_usage`.
+- Limits: `analyze` free/VIP = 2/30 per day; `chat` free/VIP = 2/50 per day; `inputParse` fair-use free/VIP = 30/100 per day.
+- Verification: `node --check` passed; deployed `ai_service`; empty online invoke now returns `401 请先登录后再使用 AI 功能`.
+
+### Fixed: Missing ai_service prompt modules
+- Files: `cloudfunctions/ai_service/prompts/*.js`
+- Change: Added the prompt modules required by `ai_service` so deployed function can start successfully.
+- Verification: Online invoke no longer fails with `Cannot find module './prompts/analyze'`.

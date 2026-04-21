@@ -31,3 +31,5 @@
 - Phase 4 fixes committed and pushed as 46add6b. Entered Phase 5: AI quota and server-side cost control review.
 
 - Phase 5 read review completed. Added findings for missing server-side AI auth/quota, missing payload size caps, and raw AI event logging. Timeout/fallback path looks acceptable.
+
+- Implemented Phase 5 P1 lightweight fix: cloud-function AI fallback now sends token/userId; ai_service validates login and records daily quota in ai_usage. Deployed ai_service and verified empty invoke returns 401 instead of running.

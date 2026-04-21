@@ -11,10 +11,18 @@ const app = tcb.init({
 });
 
 const ai = app.ai();
+const db = app.database();
+const _ = db.command;
 const AI_PROVIDER = process.env.AI_PROVIDER || 'hunyuan-exp';
 const AI_MODEL = process.env.AI_MODEL || 'hunyuan-2.0-instruct-20251111';
 const AI_BASE_URL = String(process.env.AI_BASE_URL || '').trim();
 const AI_API_KEY = String(process.env.AI_API_KEY || '').trim();
+
+const DAILY_LIMITS = {
+  analyze: { free: 2, vip: 30 },
+  chat: { free: 2, vip: 50 },
+  inputParse: { free: 30, vip: 100 }
+};
 
 const DEFAULT_SUBJECTS = [
   '语文', '数学', '英语', '物理', '化学', '生物', '历史', '地理', '政治',
@@ -28,27 +36,145 @@ exports.main = async (event = {}) => {
   const data = payload.data || {};
 
   try {
+    const user = await authorizeAIRequest(payload);
+    validateAIRequestData(action, data);
+    const usage = await consumeDailyQuota(user, action);
+
     if (action === 'analyze') {
-      return await handleAnalyze(data);
+      return withUsage(await handleAnalyze(data), usage);
     }
 
     if (action === 'inputParse') {
-      return await handleInputParse(data);
+      return withUsage(await handleInputParse(data), usage);
     }
 
     if (action === 'chat') {
-      return await handleChat(data);
+      return withUsage(await handleChat(data), usage);
     }
 
     return { code: 400, message: '不支持的 AI action' };
   } catch (error) {
     console.error('[ai_service] error:', error);
     return {
-      code: 500,
+      code: error?.code || 500,
       message: error?.message || 'AI 服务暂时不可用'
     };
   }
 };
+
+async function authorizeAIRequest(payload = {}) {
+  const token = String(payload.token || payload.auth?.token || '').trim();
+  const userId = String(payload.userId || payload.auth?.userId || '').trim();
+  if (!token || !userId) {
+    const error = new Error('请先登录后再使用 AI 功能');
+    error.code = 401;
+    throw error;
+  }
+
+  const result = await db.collection('users').where({
+    _id: userId,
+    token,
+    tokenExpireAt: _.gt(new Date())
+  }).limit(1).get();
+
+  const user = result.data && result.data[0];
+  if (!user) {
+    const error = new Error('登录已过期，请重新登录');
+    error.code = 401;
+    throw error;
+  }
+  if (user.status === 'banned') {
+    const error = new Error('该账号已被禁用');
+    error.code = 403;
+    throw error;
+  }
+  return user;
+}
+
+function getDayKey(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function isVipUser(user = {}) {
+  if (user.isAdmin || user.role === 'admin') return true;
+  if (user.role === 'vip') return true;
+  if (!user.vipExpireAt) return false;
+  return new Date(user.vipExpireAt).getTime() > Date.now();
+}
+
+function validateAIRequestData(action, data = {}) {
+  if (action === 'analyze' && sanitizeExams(data.exams).length < 2) {
+    const error = new Error('至少需要 2 场考试才能生成 AI 分析');
+    error.code = 400;
+    throw error;
+  }
+  if (action === 'inputParse' && !String(data.text || '').trim()) {
+    const error = new Error('请先输入需要识别的成绩文本');
+    error.code = 400;
+    throw error;
+  }
+  if (action === 'chat' && (!Array.isArray(data.messages) || data.messages.length === 0)) {
+    const error = new Error('对话消息不能为空');
+    error.code = 400;
+    throw error;
+  }
+}
+
+async function consumeDailyQuota(user, action) {
+  const limits = DAILY_LIMITS[action];
+  if (!limits) return null;
+
+  const userId = String(user._id || '');
+  const day = getDayKey();
+  const limit = isVipUser(user) ? limits.vip : limits.free;
+  const now = new Date();
+  const existing = await db.collection('ai_usage').where({ userId, day, action }).limit(1).get();
+  const record = existing.data && existing.data[0];
+  const used = Number(record?.count || 0);
+
+  if (used >= limit) {
+    const error = new Error(action === 'chat'
+      ? `今日 AI 对话次数已用完（${limit}/${limit}）`
+      : `今日 AI 使用次数已用完（${limit}/${limit}）`);
+    error.code = 429;
+    throw error;
+  }
+
+  if (record) {
+    await db.collection('ai_usage').doc(record._id).update({
+      count: _.inc(1),
+      updatedAt: now
+    });
+  } else {
+    await db.collection('ai_usage').add({
+      userId,
+      day,
+      action,
+      count: 1,
+      limit,
+      createdAt: now,
+      updatedAt: now
+    });
+  }
+
+  return { action, used: used + 1, limit, remaining: Math.max(0, limit - used - 1) };
+}
+
+function withUsage(result, usage) {
+  if (result && result.code === 0 && result.data && usage) {
+    return {
+      ...result,
+      data: {
+        ...result.data,
+        usage
+      }
+    };
+  }
+  return result;
+}
 
 function parseEventPayload(event = {}) {
   if (typeof event === 'string' && event.trim()) {
