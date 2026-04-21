@@ -112,3 +112,28 @@
 - Files: `pages/index/index.wxml`, `utils/report.js`
 - Change: Score card percent helper now returns display-ready text; report formats `--` without appending `%`.
 - Verification: `node --check utils/report.js`; page JS syntax check passed.
+
+## Phase 5 Findings - AI Quota & Server Cost Control
+
+### P1 AI cloud function does not enforce login or quota
+- File: `cloudfunctions/ai_service/index.js`
+- Evidence: `exports.main()` dispatches `analyze`, `inputParse`, and `chat` directly from `event.action`; `utils/vip.js` stores AI limits only in local `wxStorage`.
+- Impact: Users can clear storage, modify the mini-program package, or call the cloud function directly to bypass free/VIP daily limits. This does not usually break the normal UI path, but it can create AI cost overrun and abuse risk.
+- Suggested fix: pass `token + userId` from `utils/ai.js`, validate them in `ai_service`, and record usage server-side by `userId + day + action`.
+
+### P2 AI payload size is not capped on server
+- File: `cloudfunctions/ai_service/index.js`
+- Evidence: `handleInputParse()` accepts raw `data.text`; `handleChat()` slices message count but does not cap per-message or total content length.
+- Impact: Direct callers or modified clients can send very large prompts. `maxTokens` only limits output, not input prompt cost or latency.
+- Suggested fix: reject oversized payloads before model calls. Suggested first caps: input parse text 2000 chars, chat 20 messages, 1200 chars per message, 8000 total chars.
+
+### P2 Raw AI event is logged
+- File: `cloudfunctions/ai_service/index.js`
+- Evidence: `console.log('[ai_service] raw event:', safeStringify(event));`
+- Impact: Grade data, pasted score text, and chat content can enter cloud logs. This is not a UI bug, but it is unnecessary privacy/log-volume risk.
+- Suggested fix: log metadata only: action, userId hash/id, payload length, message count, source, error code.
+
+### OK AI timeout and frontend fallback path exists
+- Files: `utils/ai.js`, `pages/index/index.js`, `pages/ai-chat/ai-chat.js`
+- Evidence: AI analyze has mini-program timeout, cloud-function timeout, local fallback, and page-level safety timer; chat failures clear busy state in `finally`.
+- Impact: No obvious black-screen/loading-deadlock issue found in this pass.

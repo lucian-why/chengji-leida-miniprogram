@@ -27,3 +27,7 @@
 - Phase 4 read review completed. No P1 crash/data-loss issue found in score/chart/report core. Logged P2 AI manual-total consistency issue and P3 missing-fullScore display polish issue.
 
 - Fixed Phase 4 P3 display polish: missing fullScore now shows -- instead of --% in score view and reports.
+
+- Phase 4 fixes committed and pushed as 46add6b. Entered Phase 5: AI quota and server-side cost control review.
+
+- Phase 5 read review completed. Added findings for missing server-side AI auth/quota, missing payload size caps, and raw AI event logging. Timeout/fallback path looks acceptable.
