@@ -21,3 +21,9 @@
 - Fixed runtime error from device B login: removed file-level _modulesRegistered guard in pages/index/index.js; module mixins now register per page instance so _refreshCurrentExam exists after page recreation.
 
 - Fixed cross-device delete sync gap: autoSync now reads deleted cloud profiles first, removes matching local profiles when cloud delete is newer, and skips re-uploading cloud-deleted profiles in the same sync.
+
+- Entered Phase 4: score calculation, chart, report review. Scope is read-only review unless user confirms fixes.
+
+- Phase 4 read review completed. No P1 crash/data-loss issue found in score/chart/report core. Logged P2 AI manual-total consistency issue and P3 missing-fullScore display polish issue.
+
+- Fixed Phase 4 P3 display polish: missing fullScore now shows -- instead of --% in score view and reports.

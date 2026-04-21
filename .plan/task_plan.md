@@ -6,7 +6,7 @@
 
 ## Current Status
 
-- 当前阶段：Phase 3 云同步与数据生命周期 Review
+- 当前阶段：Phase 4 成绩计算、图表、报告 Review
 - 执行模式：分块 Review，发现 P1/P2 后由用户确认再修
 - 已部署修复：短信官方 Auth、admin 云端鉴权、TOKEN_SALT、syncOfficialUser、redeemVipCode token 鉴权
 
@@ -17,8 +17,8 @@
 | Phase 0 | complete | 项目地图与云函数矩阵 | 已补齐云函数配置和源码 |
 | Phase 1 | complete | 账号/短信/admin/token | 已修并部署 |
 | Phase 2 | complete | VIP 兑换兼容手机号/邮箱 | 已修并部署 |
-| Phase 3 | in_progress | 云同步与数据生命周期 | 待产出 findings |
-| Phase 4 | pending | 成绩计算、图表、报告 | 待审 |
+| Phase 3 | complete | 云同步与数据生命周期 | 已修并提交 `54ca2ff` |
+| Phase 4 | complete | 成绩计算、图表、报告 | 已修 P2/P3，待提交 |
 | Phase 5 | pending | AI 配额与服务端成本控制 | 待审 |
 | Phase 6 | pending | 最小手测清单与最终报告 | 待整理 |
 
@@ -44,10 +44,29 @@
 6. 断网、超时、云函数失败是否不会卡死。
 7. 回收站恢复是否需要服务端 VIP 校验。
 
+## Phase 4 Review Targets
+
+- `utils/format.js`
+- `utils/chart.js`
+- `utils/report.js`
+- `modules/examModule.js`
+- `modules/scoreModule.js`
+- `modules/batchModule.js`
+- `modules/chartModule.js`
+- `modules/reportModule.js`
+- `modules/dataManager.js`
+
+## Phase 4 Questions
+
+1. 手动总分与自动总分切换是否会造成显示/图表/报告不一致。
+2. `excluded` 排除统计是否在趋势图、雷达图、AI、报告里一致。
+3. 空科目、缺考、满分为 0、异常排名是否会崩溃。
+4. 趋势图/雷达图 canvas 在空数据、极端数据、长科目名下是否稳定。
+5. 报告生成对空档案、空考试、隐藏考试是否稳定。
+
 ## Errors Encountered
 
 | Time | Error | Resolution |
 |---|---|---|
 | 2026-04-21 | `rg` 不可用/Access denied | 使用 PowerShell `Get-ChildItem` + `Select-String` |
 | 2026-04-21 | PowerShell `RandomNumberGenerator.Fill` 不存在 | 改用 `RNGCryptoServiceProvider` 生成 `TOKEN_SALT` |
-

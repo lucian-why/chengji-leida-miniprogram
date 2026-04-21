@@ -26,6 +26,10 @@ function drawText(ctx, text, x, y, options = {}) {
   ctx.font = '';
 }
 
+function formatPercentText(value) {
+  return value === '--' ? '--' : `${value}%`;
+}
+
 function drawExamReport(ctx, payload) {
   const { exam, profileName, width } = payload;
   const subjects = exam.subjects || [];
@@ -54,7 +58,7 @@ function drawExamReport(ctx, payload) {
   [
     { label: '总分', value: totalScore },
     { label: '满分', value: totalFull },
-    { label: '得分率', value: `${avgPct}%` },
+    { label: '得分率', value: formatPercentText(avgPct) },
     { label: '科目', value: subjects.length }
   ].forEach((item, index) => {
     const x = 20 + index * (cardWidth + 8);
@@ -148,7 +152,7 @@ function drawProfileReport(ctx, payload) {
   const cardWidth = (width - 64) / 4;
   [
     { label: '最新总分', value: latestTotal },
-    { label: '得分率', value: `${latestPct}%` },
+    { label: '得分率', value: formatPercentText(latestPct) },
     { label: '科目', value: subjectNames.length },
     { label: '考试次数', value: sorted.length }
   ].forEach((item, index) => {

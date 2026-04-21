@@ -2,7 +2,7 @@
 module.exports.getRate = function(score, fullScore) {
   if (fullScore) {
     var rate = score / fullScore * 100;
-    return rate.toFixed(1);
+    return rate.toFixed(1) + '%';
   }
   return '--';
 }
@@ -466,7 +466,7 @@ module.exports.getRateClass = function(score) {
             <text class="score-view-card-score">{{item.score}}</text>
             <text class="score-view-card-full" wx:if="{{item.fullScore}}">/{{item.fullScore}}</text>
           </view>
-          <view class="score-view-card-rate {{scoreUtil.getRateClass(item.score)}}">{{scoreUtil.getRate(item.score, item.fullScore)}}%</view>
+          <view class="score-view-card-rate {{scoreUtil.getRateClass(item.score)}}">{{scoreUtil.getRate(item.score, item.fullScore)}}</view>
           <view class="score-view-card-rank" wx:if="{{item.classRank || item.gradeRank}}">
             <text class="rank-tag" wx:if="{{item.classRank}}">班 {{item.classRank}}</text>
             <text class="rank-tag" wx:if="{{item.gradeRank}}">年 {{item.gradeRank}}</text>

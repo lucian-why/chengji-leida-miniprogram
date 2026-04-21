@@ -17,6 +17,7 @@
 const { callFunction } = require('./cloud');
 const { getCurrentUser } = require('./auth');
 const { getExams, getActiveProfileId } = require('./storage');
+const { getDisplayTotalScore } = require('./format');
 
 // ==================== 常量 & 状态 ====================
 
@@ -615,7 +616,7 @@ function buildChatSystemPrompt(source = 'global', extra = {}) {
   const exams = getExams(profileId, true);
   const examSummary = exams.slice(-6).map(exam => {
     const subjects = (exam.subjects || []).map(s => `${s.name}:${s.score}/${s.fullScore || 100}`).join(', ');
-    return `${exam.name}(${exam.startDate || exam.createdAt || ''}) 总分:${exam.manualTotalScore || (exam.subjects || []).reduce((sum, s) => sum + (Number(s.score) || 0), 0)} ${subjects ? '[' + subjects + ']' : ''}`;
+    return `${exam.name}(${exam.startDate || exam.createdAt || ''}) 总分:${getDisplayTotalScore(exam)} ${subjects ? '[' + subjects + ']' : ''}`;
   }).join('\n');
 
   let prompt = `你是"成绩雷达"的 AI 学习分析助手，正在和用户进行一对一对话。

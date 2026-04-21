@@ -86,3 +86,29 @@
 ### Deferred: Recycle-bin restore still lacks server-side VIP check
 - File: `cloudfunctions/restoreCloudProfiles/index.js`
 - Current decision: User said third item not needed now; keep open/deferred.
+
+## Phase 4 Findings - Score, Chart, Report
+
+### P2 AI chat summary ignores manual total score when value is 0
+- File: `utils/ai.js`
+- Evidence: Chat prompt uses `exam.manualTotalScore || autoSum`, while display/report helpers use explicit null/undefined checks.
+- Impact: If user manually sets total score to 0, AI chat summary sends auto-calculated total instead. This is inconsistent with page display and reports.
+- Suggested fix: use `fmt.getDisplayTotalScore(exam)` or same nullish semantics as `getManualTotalScore()`.
+
+### P3 Missing fullScore renders `--%` in score/report UI
+- Files: `pages/index/index.wxml`, `utils/report.js`
+- Evidence: WXS `getRate()` returns `--` when `fullScore` is missing, but template appends `%`; report also formats `${latestPct}%` even when `toPercent()` returns `--`.
+- Impact: Old/cloud data with missing `fullScore` does not crash, but UI shows `--%`, which looks unpolished.
+- Suggested fix: return display-ready percent text from helper or only append `%` for numeric values.
+
+## Phase 4 Fixes Applied
+
+### Fixed: AI chat summary ignores manual total score when value is 0
+- File: `utils/ai.js`
+- Change: Chat summary now uses `getDisplayTotalScore(exam)`, matching page and report semantics.
+- Verification: `node --check utils/ai.js`; manual-total-zero helper test passed.
+
+### Fixed: Missing fullScore renders `--%` in score/report UI
+- Files: `pages/index/index.wxml`, `utils/report.js`
+- Change: Score card percent helper now returns display-ready text; report formats `--` without appending `%`.
+- Verification: `node --check utils/report.js`; page JS syntax check passed.
