@@ -67,6 +67,13 @@ const MINI_PROGRAM_AI_MODEL = 'hunyuan-2.0-instruct-20251111';
 const MINI_PROGRAM_AI_TIMEOUT = 15000;  // 原生 AI 超时 15 秒
 const CLOUD_FUNCTION_TIMEOUT = 25000;   // 云函数超时 25 秒
 const CHAT_AI_TIMEOUT = 20000;          // 对话模式超时 20 秒
+const AI_LIMITS = {
+  inputParseTextChars: 2000,
+  chatMessages: 21,
+  chatContentChars: 1200,
+  chatTotalChars: 8000,
+  analyzePayloadBytes: 30 * 1024
+};
 
 let _analysisRequestToken = 0;
 let _lastAnalysisKey = '';
@@ -81,6 +88,7 @@ function normalizeExamDate(exam) {
 
 function buildAnalysisPayload(exams) {
   return exams
+    .slice(-12)
     .map((exam) => ({
       name: exam.name,
       date: normalizeExamDate(exam),
@@ -100,6 +108,27 @@ function buildAnalysisPayload(exams) {
       }))
     }))
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+}
+
+function getUtf8ByteLength(text) {
+  return unescape(encodeURIComponent(String(text || ''))).length;
+}
+
+function normalizeChatMessages(messages = []) {
+  const limited = Array.isArray(messages) ? messages.slice(-AI_LIMITS.chatMessages) : [];
+  let totalChars = 0;
+  return limited.map((msg) => {
+    const role = String(msg?.role || 'user').trim();
+    let content = String(msg?.content || '').trim();
+    if (role === 'user' || role === 'assistant') {
+      content = content.slice(0, AI_LIMITS.chatContentChars);
+    }
+    const remaining = AI_LIMITS.chatTotalChars - totalChars;
+    if (remaining <= 0) content = '';
+    if (content.length > remaining) content = content.slice(0, remaining);
+    totalChars += content.length;
+    return { role, content };
+  }).filter(msg => msg.content);
 }
 
 /**
@@ -386,6 +415,18 @@ async function refreshAIAnalysis({ force = false } = {}) {
   // 缓存命中？
   const payload = buildAnalysisPayload(exams);
   const cacheKey = JSON.stringify(payload);
+  if (getUtf8ByteLength(cacheKey) > AI_LIMITS.analyzePayloadBytes) {
+    const fallbackText = buildLocalFallbackAnalysis(payload);
+    return {
+      status: 'success',
+      html: formatAnalysisHtml(fallbackText),
+      meta: {
+        source: 'local-fallback',
+        fallbackReason: '考试数据量较大，当前为基础统计结果',
+        updatedAt: Date.now()
+      }
+    };
+  }
   if (!force && cacheKey === _lastAnalysisKey && _lastAnalysisText) {
     return {
       status: 'success',
@@ -499,6 +540,9 @@ async function parseBatchSubjects(rawText, subjectHints = []) {
   const text = String(rawText || '').trim();
   if (!text) {
     return { success: false, message: TEXT.batchNeedText };
+  }
+  if (text.length > AI_LIMITS.inputParseTextChars) {
+    return { success: false, message: `成绩文本最多 ${AI_LIMITS.inputParseTextChars} 字，请分段识别。` };
   }
 
   const user = getCurrentUser();
@@ -666,10 +710,14 @@ ${examSummary || '暂无考试数据'}
  */
 async function sendChatMessage({ messages, timeout } = {}) {
   const actualTimeout = timeout || CHAT_AI_TIMEOUT;
+  const safeMessages = normalizeChatMessages(messages);
+  if (safeMessages.length === 0) {
+    throw new Error('对话消息不能为空');
+  }
 
   // ① 优先使用小程序原生 AI
   try {
-    const result = await generateTextWithMiniProgramAI(messages, {
+    const result = await generateTextWithMiniProgramAI(safeMessages, {
       temperature: 0.5,
       timeout: actualTimeout
     });
@@ -683,7 +731,7 @@ async function sendChatMessage({ messages, timeout } = {}) {
     const result = await callFunction('ai_service', {
       ...getAIAuthPayload(),
       action: 'chat',
-      data: { messages }
+      data: { messages: safeMessages }
     }, { timeout: CLOUD_FUNCTION_TIMEOUT });
 
     if (result && result.code === 0 && result.data && result.data.text) {
@@ -744,6 +792,7 @@ module.exports = {
   parseBatchSubjects,
   buildLocalFallbackAnalysis,
   buildAnalysisPayload,
+  AI_LIMITS,
   TEXT,
   formatAnalysisHtml,
   sendChatMessage,

@@ -150,3 +150,9 @@
 - Files: `cloudfunctions/ai_service/prompts/*.js`
 - Change: Added the prompt modules required by `ai_service` so deployed function can start successfully.
 - Verification: Online invoke no longer fails with `Cannot find module './prompts/analyze'`.
+
+### Fixed: AI payload size is not capped on server
+- Files: `cloudfunctions/ai_service/index.js`, `utils/ai.js`, `pages/ai-chat/ai-chat.js`
+- Change: Added service-side payload limits and frontend pre-checks for batch parse, chat, and analysis payloads.
+- Limits: `inputParse.text` 2000 chars; chat history 20 messages plus system; chat user/assistant message 1200 chars; chat total context 8000 chars; analysis payload 30KB.
+- Verification: `node --check` passed; deployed `ai_service`; empty online invoke still returns `401 请先登录后再使用 AI 功能`.

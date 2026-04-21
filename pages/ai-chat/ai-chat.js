@@ -15,6 +15,10 @@ const ai = require('../../utils/ai');
 const auth = require('../../utils/auth');
 const vip = require('../../utils/vip');
 const { getExams, getActiveProfileId } = require('../../utils/storage');
+const AI_LIMITS = ai.AI_LIMITS || {
+  chatContentChars: 1200,
+  chatMessages: 21
+};
 
 Page({
   data: {
@@ -106,6 +110,13 @@ Page({
   async onSend() {
     const text = String(this.data.inputText || '').trim();
     if (!text || this.data.isBusy) return;
+    if (text.length > AI_LIMITS.chatContentChars) {
+      wx.showToast({
+        title: `单次最多 ${AI_LIMITS.chatContentChars} 字`,
+        icon: 'none'
+      });
+      return;
+    }
 
     // VIP 配额检查
     const chatQuota = vip.checkLimit('aiChat');
@@ -170,11 +181,14 @@ Page({
 
   _buildAIMessages() {
     const messages = [{ role: 'system', content: this._systemPrompt }];
-    // 取最近 20 轮对话
-    const recent = this.data.messages.slice(-40);
+    // 20 条历史 + 1 条 system，和云函数上限保持一致。
+    const recent = this.data.messages.slice(-(AI_LIMITS.chatMessages - 1));
     recent.forEach(msg => {
       if (msg.isError) return;
-      messages.push({ role: msg.role, content: msg.content });
+      messages.push({
+        role: msg.role,
+        content: String(msg.content || '').slice(0, AI_LIMITS.chatContentChars)
+      });
     });
     return messages;
   },

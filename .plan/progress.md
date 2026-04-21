@@ -35,3 +35,5 @@
 - Implemented Phase 5 P1 lightweight fix: cloud-function AI fallback now sends token/userId; ai_service validates login and records daily quota in ai_usage. Deployed ai_service and verified empty invoke returns 401 instead of running.
 
 - Entered and completed Phase 6. Added CODE_REVIEW_FINAL_REPORT.md with resolved items, deferred risks, minimal manual test checklist, and final verification commands. Syntax matrix and cloud-function matrix checks passed.
+
+- Implemented Phase 5 P2 input limits after user approval. Added service-side hard caps and frontend pre-checks; deployed ai_service and verified auth guard still returns 401 for empty invoke.

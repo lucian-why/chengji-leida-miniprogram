@@ -24,6 +24,14 @@ const DAILY_LIMITS = {
   inputParse: { free: 30, vip: 100 }
 };
 
+const INPUT_LIMITS = {
+  inputParseTextChars: 2000,
+  chatMessages: 21,
+  chatContentChars: 1200,
+  chatTotalChars: 8000,
+  analyzePayloadBytes: 30 * 1024
+};
+
 const DEFAULT_SUBJECTS = [
   '语文', '数学', '英语', '物理', '化学', '生物', '历史', '地理', '政治',
   '道法', '科学', '文综', '理综', '日语'
@@ -106,21 +114,59 @@ function isVipUser(user = {}) {
 }
 
 function validateAIRequestData(action, data = {}) {
-  if (action === 'analyze' && sanitizeExams(data.exams).length < 2) {
-    const error = new Error('至少需要 2 场考试才能生成 AI 分析');
-    error.code = 400;
-    throw error;
+  if (action === 'analyze') {
+    const exams = sanitizeExams(data.exams);
+    if (exams.length < 2) {
+      throwClientError('至少需要 2 场考试才能生成 AI 分析');
+    }
+    const payloadBytes = Buffer.byteLength(JSON.stringify(exams), 'utf8');
+    if (payloadBytes > INPUT_LIMITS.analyzePayloadBytes) {
+      throwClientError('AI 分析数据过大，请减少考试或科目数量后再试');
+    }
   }
-  if (action === 'inputParse' && !String(data.text || '').trim()) {
-    const error = new Error('请先输入需要识别的成绩文本');
-    error.code = 400;
-    throw error;
+
+  if (action === 'inputParse') {
+    const text = String(data.text || '').trim();
+    if (!text) {
+      throwClientError('请先输入需要识别的成绩文本');
+    }
+    if (text.length > INPUT_LIMITS.inputParseTextChars) {
+      throwClientError(`成绩文本最多 ${INPUT_LIMITS.inputParseTextChars} 字，请分段识别`);
+    }
   }
-  if (action === 'chat' && (!Array.isArray(data.messages) || data.messages.length === 0)) {
-    const error = new Error('对话消息不能为空');
-    error.code = 400;
-    throw error;
+
+  if (action === 'chat') {
+    validateChatMessages(data.messages);
   }
+}
+
+function validateChatMessages(rawMessages) {
+  if (!Array.isArray(rawMessages) || rawMessages.length === 0) {
+    throwClientError('对话消息不能为空');
+  }
+  if (rawMessages.length > INPUT_LIMITS.chatMessages) {
+    throwClientError(`AI 对话最多保留最近 ${INPUT_LIMITS.chatMessages - 1} 条历史消息`);
+  }
+
+  let totalChars = 0;
+  rawMessages.forEach((msg) => {
+    const role = String(msg?.role || 'user').trim();
+    const content = String(msg?.content || '').trim();
+    totalChars += content.length;
+    if ((role === 'user' || role === 'assistant') && content.length > INPUT_LIMITS.chatContentChars) {
+      throwClientError(`单条对话最多 ${INPUT_LIMITS.chatContentChars} 字，请拆成多次发送`);
+    }
+  });
+
+  if (totalChars > INPUT_LIMITS.chatTotalChars) {
+    throwClientError(`AI 对话上下文最多 ${INPUT_LIMITS.chatTotalChars} 字，请开启新对话后再试`);
+  }
+}
+
+function throwClientError(message) {
+  const error = new Error(message);
+  error.code = 400;
+  throw error;
 }
 
 async function consumeDailyQuota(user, action) {
@@ -577,7 +623,7 @@ async function handleChat(data = {}) {
   }
 
   // 限制消息数量，防止 token 爆炸
-  const messages = rawMessages.slice(-42).map(msg => ({
+  const messages = rawMessages.slice(-INPUT_LIMITS.chatMessages).map(msg => ({
     role: String(msg.role || 'user').trim(),
     content: String(msg.content || '').trim()
   })).filter(msg => msg.content && ['system', 'user', 'assistant'].includes(msg.role));
